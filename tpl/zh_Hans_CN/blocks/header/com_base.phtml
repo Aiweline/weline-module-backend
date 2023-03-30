@@ -1,0 +1,171 @@
+<!--
+=========================================================================================================== 
+模板文件：E:\WelineFramework\DEV-workspace\app\code\Weline\Backend\view\blocks\header\base.phtml START
+===========================================================================================================
+ -->
+<?php
+/**@var \Weline\Framework\View\Template $this */
+/**@var \Weline\Backend\Block\ThemeConfig $themeConfig */
+$themeConfig = \Weline\Framework\Manager\ObjectManager::getInstance(\Weline\Backend\Block\ThemeConfig::class);
+?>
+<?php
+$host      = $this->request->getBaseHost() . '/';
+$base_host = $this->request->getPrePath();
+//$http_host                          = explode('.', $this->request->getServer('HTTP_HOST'));
+//$domain                             = array_pop($http_host);
+//$domain                             = array_pop($http_host) . '.' . $domain;
+$base_router                        = $this->request->getRouterData('router');
+$current_module                     = $this->request->getModuleName();
+$base_backend                       = \Weline\Framework\App\Env::getInstance()->getConfig('admin');
+$base_backend_url_host              = $this->request->getBaseHost() . '/' . $base_backend . '/';
+$base_backend_api_host              = $this->request->getBaseHost() . '/' . \Weline\Framework\App\Env::getInstance()->getConfig('api_admin') . '/';
+$env_model                          = \Weline\Framework\App\Env::getInstance()->getConfig('deploy');
+$theme_path                         = \Weline\Framework\App\Env::getInstance()->getTheme()['path'];
+$env_model_media_base_path_template = $host . (DEV ? '{module}/view/statics/{path}' : 'static/' . $theme_path . '/{module}/view/statics/{path}');
+?>
+<!--加载requirejs-->
+<?php if (DEV) : ?>
+    <!--            <script src="/Weline/Backend/view/statics/backend/lib/requirejs/2.3.6/requirejs.js?v=69774"></script>-->
+<?php
+else:
+    ?>
+    <!--            <script src="/Weline/Backend/view/statics/backend/lib/requirejs/2.3.6/requirejs.min.js?v=60356"></script>-->
+<?php
+endif;
+?>
+<!--加载require常用js模块-->
+<!--<script src='/Weline/Frontend/view/statics/base/require.configs.js?v=49366'></script>-->
+<script  src='/Weline/Backend/view/statics/backend/lib/jquery/3.6.0/jquery.js?v=91699'></script>
+<script  src='/Weline/Backend/view/statics/js/cookie.js?v=58131'></script>
+<script>
+    window.site = {
+        host: '<?=$host ??'';?>',
+        base_host: '<?=$base_host ??'';?>',
+        env_model: '<?=$env_model ??'';?>',
+        env_model_media_base_path_template: '<?=$env_model_media_base_path_template ??'';?>',
+        base_backend_api_host: '<?=$base_backend_api_host ??'';?>',
+        base_backend_url_host: '<?=$base_backend_url_host ??'';?>',
+        base_router: '<?=$base_router ??'';?>',
+        i18n: <?= json_encode(Weline\Framework\Phrase\Parser::getWords())?>,
+        themeConfig: <?=json_encode($themeConfig->getThemeConfig()) ?? '{}';?>,
+    }
+    window.media = (path, module = '<?=$current_module ??'';?>') => {
+        module = module.replace('_', '/')
+        return '<?=$env_model_media_base_path_template ??'';?>'.replace('{path}', path).replace('{module}', module)
+    }
+    window.path = (path) => {
+        path = path.replace('*', '<?=$base_router ??'';?>')
+        if (path.indexOf('//') === 0) {
+            path = path.slice(2)
+        }
+        if (path.indexOf('/') === 0) {
+            path = path.slice(1)
+        }
+        return path;
+    }
+    window.url = (path) => {
+        return window.backend_url(path);
+    }
+    window.frontend_url = (path) => {
+        return '<?=$host ??'';?>' + window.path(path);
+    }
+    window.backend_url = (path) => {
+        return '<?=$base_backend_url_host ??'';?>' + window.path(path);
+    }
+    window.api = (path) => {
+        return '<?=$base_backend_api_host ??'';?>' + window.path(path);
+    }
+    window.frontend_api = (path) => {
+        return '<?=$host ??'';?>' + window.path(path);
+    }
+    window.backend_api = (path) => {
+        return '<?=$base_backend_api_host ??'';?>' + window.path(path);
+    }
+
+    function selectLanguage(lang) {
+        setCookie('WELINE-USER-LANG', lang, 7, {path: '/<?=$base_backend ??'';?>'/*, domain: '<?=$domain ??'';?>'*/});
+        window.location.reload();
+    }
+
+    /**
+     * 通用打印函数
+     * @param data
+     */
+    function p(data) {
+        console.log(data)
+    }
+
+    /**
+     * 通用打印函数
+     * @param data
+     */
+    function d(data) {
+        console.log(data)
+    }
+
+    /**
+     * 翻译函数
+     * @param phrase
+     * @param arguments {*}
+     * @returns {*}
+     * @private
+     */
+    function phrase(phrase, arguments = null) {
+        if (window.site.i18n[phrase] !== undefined) {
+            phrase = window.site.i18n[phrase]
+        } else {
+            window.site.i18n[phrase] = phrase
+        }
+        if (arguments) {
+            switch (arguments.constructor) {
+                case String:
+                    phrase = phrase.replace(/%1/g, arguments)
+                    break;
+                case Object:
+                    for (let argument_key in arguments) {
+                        let arg = arguments[argument_key]
+                        let regExp = new RegExp(eval('/%' + argument_key + '/g'));
+                        phrase = phrase.replace(regExp, arg)
+                    }
+                    break;
+                case Array:
+                    for (let argument_key in arguments) {
+                        let arg = arguments[argument_key]
+                        argument_key = 1 + parseInt(argument_key)
+                        let regExp = new RegExp(eval('/%' + argument_key + '/g'));
+                        phrase = phrase.replace(regExp, arg)
+                    }
+                    break;
+            }
+        }
+        return phrase
+    }
+
+    /**
+     * 翻译短语函数
+     * @param word
+     * @param arguments {*}
+     * @returns {*}
+     * @private
+     */
+    function __(word, arguments = null) {
+        return phrase(word, arguments)
+    }
+
+    /**
+     * 翻译函数
+     * @param word
+     * @param arguments {*}
+     * @returns {*}
+     * @private
+     */
+    function lang(word, arguments = null) {
+        return phrase(word, arguments)
+    }
+
+</script>
+<!--
+=============================================================================================================================
+模板文件：E:\WelineFramework\DEV-workspace\app\code\Weline\Backend\view\tpl\\zh_Hans_CN\blocks\header\com_base.phtml END
+=============================================================================================================================
+-->
