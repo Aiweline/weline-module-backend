@@ -10,10 +10,5 @@ declare(strict_types=1);
  */
 return [
     // 路由
-    'router'       => 'backend',
-    // 依赖
-    'dependencies' => [
-        'Weline_Acl',
-        'Weline_SystemConfig'
-    ]
+    'router'       => 'backend'
 ];
