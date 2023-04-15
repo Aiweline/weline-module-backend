@@ -88,7 +88,8 @@ class BackendUser extends \Weline\Framework\Database\Model
 
     public function addAttemptTimes(): static
     {
-        $this->setData(self::fields_attempt_times, intval($this->getData(self::fields_attempt_times)) + 1);
+        $this->setData(self::fields_attempt_times, intval($this->getData(self::fields_attempt_times)) + 1)
+             ->forceCheck();
         return $this;
     }
 
@@ -99,7 +100,7 @@ class BackendUser extends \Weline\Framework\Database\Model
 
     public function setAttemptIp($ip): BackendUser
     {
-        return $this->setData(self::fields_attempt_ip, $ip);
+        return $this->setData(self::fields_attempt_ip, $ip)->forceCheck();
     }
 
     public function resetAttemptTimes(): static
@@ -157,7 +158,7 @@ class BackendUser extends \Weline\Framework\Database\Model
 
     public function setSessionId(string $sess_id): BackendUser
     {
-        return $this->setData(self::fields_sess_id, $sess_id);
+        return $this->setData(self::fields_sess_id, $sess_id)->forceCheck();
     }
 
     public function getLoginIp()
