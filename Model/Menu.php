@@ -28,18 +28,18 @@ class Menu extends \Weline\Framework\Database\Model
 {
     public const primary_key = 'source';
 
-    public const fields_NAME = 'name';
-    public const fields_TITLE = 'title';
-    public const fields_PID = 'pid';
-    public const fields_SOURCE = 'source';
+    public const fields_NAME          = 'name';
+    public const fields_TITLE         = 'title';
+    public const fields_PID           = 'pid';
+    public const fields_SOURCE        = 'source';
     public const fields_PARENT_SOURCE = 'parent_source';
-    public const fields_ACTION = 'action';
-    public const fields_MODULE = 'module';
-    public const fields_ICON = 'icon';
-    public const fields_ORDER = 'order';
-    public const fields_IS_SYSTEM = 'is_system';
-    public const fields_IS_ENABLE = 'is_enable';
-    public const fields_IS_BACKEND = 'is_backend';
+    public const fields_ACTION        = 'action';
+    public const fields_MODULE        = 'module';
+    public const fields_ICON          = 'icon';
+    public const fields_ORDER         = 'order';
+    public const fields_IS_SYSTEM     = 'is_system';
+    public const fields_IS_ENABLE     = 'is_enable';
+    public const fields_IS_BACKEND    = 'is_backend';
 
     private Url $url;
 
@@ -290,11 +290,11 @@ class Menu extends \Weline\Framework\Database\Model
     {
         $model = self::Acl();
         if ($role->getId() !== 1) {
+            $roleAccessSources  = $this->getRoleAccessSources($role);
             // 以子权限扫描所有权限的父级
             $roleAccesses = $model->clear()
-                                  ->joinModel(RoleAccess::class, 'ra', 'ra.source_id=main_table.source_id')
-                                  ->joinModel(Menu::class, 'menu', 'ra.source_id=menu.source')
-                                  ->where('ra.' . RoleAccess::fields_ROLE_ID, $role->getId(0))
+                                  ->joinModel(Menu::class, 'menu', 'main_table.source_id=menu.source', 'right')
+                                  ->where('menu.source', $roleAccessSources, '=','or')
                                   ->select()
                                   ->fetch()
                                   ->getItems();
@@ -306,7 +306,7 @@ class Menu extends \Weline\Framework\Database\Model
             foreach ($roleAccesses as $roleAccess) {
                 $source = $roleAccess['parent_source'];
                 if (empty($source)) {
-                    $roleAccess                                = $this->getSubMenusByRole($roleAccess, $role);
+                    $roleAccess                                = $this->getSubMenusByRole($roleAccess, $role,$roleAccessSources);
                     $top_menus[$roleAccess->getSourceId()]     = $roleAccess;
                     $checked_menus[$roleAccess->getSourceId()] = $roleAccess;
                 } else {
@@ -314,8 +314,9 @@ class Menu extends \Weline\Framework\Database\Model
                     if (!isset($mergerParentAcl[$source])) {
                         /**@var Acl $menu */
                         $menu                                = clone $model->clear()
-                                                                           ->joinModel(RoleAccess::class, 'ra', 'ra.source_id=main_table.source_id')
-                                                                           ->joinModel(Menu::class, 'menu', 'ra.source_id=menu.source')
+                                                                           ->joinModel(RoleAccess::class, 'ra', 'ra.source_id=main_table
+                                                                           .source_id', 'right')
+                                                                           ->joinModel(Menu::class, 'menu', 'ra.source_id=menu.source', 'right')
                                                                            ->where('main_table.source_id', $source)
                                                                            ->order('menu.order', 'asc')
                                                                            ->find()
@@ -333,8 +334,7 @@ class Menu extends \Weline\Framework\Database\Model
             }
         } else {
             $top_menus = $model->clear()
-                               ->joinModel(RoleAccess::class, 'ra', 'ra.source_id=main_table.source_id')
-                               ->joinModel(Menu::class, 'menu', 'ra.source_id=menu.source')
+                               ->joinModel(Menu::class, 'menu', 'main_table.source_id=menu.source')
                                ->where('main_table.parent_source is null or main_table.parent_source=""')
                                ->order('menu.order', 'asc')
                                ->group('main_table.acl_id')
@@ -356,9 +356,10 @@ class Menu extends \Weline\Framework\Database\Model
      * @DateTime: 2023/1/31 23:25
      * 参数区：
      *
-     * @param Acl $acl
-     * @param Role $role
+     * @param Acl   $acl
+     * @param Role  $role
      * @param array $checked_menus
+     *
      * @return Acl
      * @throws Core
      * @throws \ReflectionException
@@ -450,5 +451,29 @@ class Menu extends \Weline\Framework\Database\Model
         }
 
         return $acl;
+    }
+
+    /**
+     * @DESC          # 方法描述
+     *
+     * @AUTH    秋枫雁飞
+     * @EMAIL aiweline@qq.com
+     * @DateTime: 2023/5/14 11:44
+     * 参数区：
+     *
+     * @param \Weline\Acl\Model\Role $role
+     *
+     * @return array|mixed
+     */
+    protected function getRoleAccessSources(Role $role): mixed
+    {
+        /**@var RoleAccess $roleSourceModel */
+        $roleSourceModel   = ObjectManager::getInstance(RoleAccess::class);
+        $roleAccess        = $roleSourceModel->where(RoleAccess::fields_ROLE_ID, $role->getId(0))->select()->fetchOrigin();
+        $roleAccessSources = [];
+        foreach ($roleAccess as $roleAccess) {
+            $roleAccessSources[] = $roleAccess[RoleAccess::fields_SOURCE_ID];
+        }
+        return $roleAccessSources;
     }
 }
