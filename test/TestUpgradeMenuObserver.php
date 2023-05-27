@@ -41,7 +41,8 @@ class TestUpgradeMenuObserver extends \Weline\Framework\UnitTest\TestCore
             'parent_source' => '',
             'pid'           => 0,
         ];
-        $result = $this->menu->setData($menu)->save(true);
+        $result = $this->menu->setData($menu)->save(true,'source');
+        $result = $this->menu->setData(['path'=>55])->save(true,'source');
         assertTrue($result, '添加菜单');
     }
 }

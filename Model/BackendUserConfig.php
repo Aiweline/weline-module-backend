@@ -94,7 +94,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
         }
     }
 
-    public function save(array|bool|AbstractModel $data = [], string $sequence = null): bool
+    public function save(array|bool|AbstractModel $data = [], string|array $sequence = null): bool
     {
         $this->forceCheck();
         return parent::save($data, $sequence);

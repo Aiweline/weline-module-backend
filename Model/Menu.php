@@ -18,6 +18,7 @@ use Weline\Backend\Cache\BackendCache;
 use Weline\Framework\App\Env;
 use Weline\Framework\Cache\CacheInterface;
 use Weline\Framework\Database\Api\Db\Ddl\TableInterface;
+use Weline\Framework\Database\Db\Ddl\Table;
 use Weline\Framework\Exception\Core;
 use Weline\Framework\Http\Url;
 use Weline\Framework\Manager\ObjectManager;
@@ -26,12 +27,17 @@ use Weline\Framework\Setup\Db\ModelSetup;
 
 class Menu extends \Weline\Framework\Database\Model
 {
-    public const primary_key = 'source';
+    public const fields_ID = 'menu_id';
+
+    public array $_unit_primary_keys = ['menu_id', 'source'];
+    public array $_index_sort_keys = ['menu_id', 'source'];
 
     public const fields_NAME          = 'name';
     public const fields_TITLE         = 'title';
     public const fields_PID           = 'pid';
     public const fields_SOURCE        = 'source';
+    public const fields_LEVEL         = 'level';
+    public const fields_PATH          = 'path';
     public const fields_PARENT_SOURCE = 'parent_source';
     public const fields_ACTION        = 'action';
     public const fields_MODULE        = 'module';
@@ -74,6 +80,7 @@ class Menu extends \Weline\Framework\Database\Model
     public function install(ModelSetup $setup, Context $context): void
     {
         $setup->getPrinting()->setup('安装数据表...' . self::table);
+//        $setup->dropTable();
         if (!$setup->tableExist()) {
             $setup->createTable('后端菜单表')
                   ->addColumn(self::fields_ID, TableInterface::column_type_INTEGER, null, 'primary key auto_increment', 'ID')
@@ -81,6 +88,8 @@ class Menu extends \Weline\Framework\Database\Model
                   ->addColumn(self::fields_TITLE, TableInterface::column_type_VARCHAR, 60, 'not null', '菜单标题')
                   ->addColumn(self::fields_PID, TableInterface::column_type_INTEGER, 0, '', '父级ID')
                   ->addColumn(self::fields_SOURCE, TableInterface::column_type_VARCHAR, 255, 'unique', '资源')
+                  ->addColumn(self::fields_LEVEL, TableInterface::column_type_INTEGER, 0, 'default 0 ', '层级')
+                  ->addColumn(self::fields_PATH, TableInterface::column_type_VARCHAR, 255, '', '路径')
                   ->addColumn(self::fields_PARENT_SOURCE, TableInterface::column_type_VARCHAR, 255, 'not null', '父级资源')
                   ->addColumn(self::fields_ACTION, TableInterface::column_type_VARCHAR, 255, 'not null', '动作URL')
                   ->addColumn(self::fields_MODULE, TableInterface::column_type_VARCHAR, 255, 'not null', '模块')
@@ -89,7 +98,7 @@ class Menu extends \Weline\Framework\Database\Model
                   ->addColumn(self::fields_IS_BACKEND, TableInterface::column_type_INTEGER, 1, 'default 1', '是否后台菜单')
                   ->addColumn(self::fields_IS_SYSTEM, TableInterface::column_type_INTEGER, 1, 'default 0', '是否系统菜单')
                   ->addColumn(self::fields_IS_ENABLE, TableInterface::column_type_INTEGER, 1, 'default 1', '是否启用')
-                  ->addAdditional('ENGINE=MyIsam;')
+                  ->addIndex(Table::index_type_KEY, 'index_source', self::fields_SOURCE, '资源唯一')
                   ->create();
         } else {
             $setup->getPrinting()->warning('数据表存在，跳过安装数据表...' . self::table);
@@ -104,6 +113,26 @@ class Menu extends \Weline\Framework\Database\Model
     public function setName(string $name): static
     {
         return parent::setData(self::fields_NAME, $name);
+    }
+
+    public function getLevel(): int
+    {
+        return parent::getData(self::fields_LEVEL) ?? 0;
+    }
+
+    public function setLevel(int $level): static
+    {
+        return parent::setData(self::fields_LEVEL, $level);
+    }
+
+    public function getPath(): string
+    {
+        return parent::getData(self::fields_PATH) ?? '';
+    }
+
+    public function setPath(string $path): static
+    {
+        return parent::setData(self::fields_PATH, $path);
     }
 
     public function getPid()
@@ -290,11 +319,11 @@ class Menu extends \Weline\Framework\Database\Model
     {
         $model = self::Acl();
         if ($role->getId() !== 1) {
-            $roleAccessSources  = $this->getRoleAccessSources($role);
+            $roleAccessSources = $this->getRoleAccessSources($role);
             // 以子权限扫描所有权限的父级
             $roleAccesses = $model->clear()
                                   ->joinModel(Menu::class, 'menu', 'main_table.source_id=menu.source', 'right')
-                                  ->where('menu.source', $roleAccessSources, '=','or')
+                                  ->where('menu.source', $roleAccessSources, '=', 'or')
                                   ->select()
                                   ->fetch()
                                   ->getItems();
@@ -306,7 +335,7 @@ class Menu extends \Weline\Framework\Database\Model
             foreach ($roleAccesses as $roleAccess) {
                 $source = $roleAccess['parent_source'];
                 if (empty($source)) {
-                    $roleAccess                                = $this->getSubMenusByRole($roleAccess, $role,$roleAccessSources);
+                    $roleAccess                                = $this->getSubMenusByRole($roleAccess, $role, $roleAccessSources);
                     $top_menus[$roleAccess->getSourceId()]     = $roleAccess;
                     $checked_menus[$roleAccess->getSourceId()] = $roleAccess;
                 } else {
