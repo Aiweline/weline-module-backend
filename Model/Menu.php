@@ -46,7 +46,7 @@ class Menu extends \Weline\Framework\Database\Model
     public const fields_IS_SYSTEM     = 'is_system';
     public const fields_IS_ENABLE     = 'is_enable';
     public const fields_IS_BACKEND    = 'is_backend';
-
+    
     private Url $url;
 
     public function __init()
@@ -98,7 +98,7 @@ class Menu extends \Weline\Framework\Database\Model
                   ->addColumn(self::fields_IS_BACKEND, TableInterface::column_type_INTEGER, 1, 'default 1', '是否后台菜单')
                   ->addColumn(self::fields_IS_SYSTEM, TableInterface::column_type_INTEGER, 1, 'default 0', '是否系统菜单')
                   ->addColumn(self::fields_IS_ENABLE, TableInterface::column_type_INTEGER, 1, 'default 1', '是否启用')
-                  ->addIndex(Table::index_type_KEY, 'index_source', self::fields_SOURCE, '资源唯一')
+                  ->addIndex(Table::index_type_KEY, 'idx_source', self::fields_SOURCE, '资源唯一')
                   ->create();
         } else {
             $setup->getPrinting()->warning('数据表存在，跳过安装数据表...' . self::table);

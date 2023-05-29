@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Weline\Backend\Model;
 
+use Aiweline\AliDdnsServer\Model\DdnsDomains;
 use Weline\Acl\Model\Role;
 use Weline\Backend\Model\Backend\Acl\UserRole;
 use Weline\Framework\Database\Api\Db\Ddl\TableInterface;
@@ -29,6 +30,9 @@ class BackendUser extends \Weline\Framework\Database\Model
     public const fields_attempt_ip    = 'attempt_ip';
     public const fields_attempt_times = 'attempt_times';
     public const fields_sess_id       = 'sess_id';
+
+    public array $_unit_primary_keys = ['user_id', 'email', 'username'];
+    public array $_index_sort_keys = ['user_id', 'email', 'username'];
 
     /**
      * @inheritDoc
@@ -59,21 +63,16 @@ class BackendUser extends \Weline\Framework\Database\Model
             $setup->createTable('管理员表')
                   ->addColumn(self::fields_ID, TableInterface::column_type_INTEGER, null, 'auto_increment primary key', '用户ID')
                   ->addColumn(self::fields_email, TableInterface::column_type_VARCHAR, 255, 'not null unique', '邮箱')
-                  ->addColumn(self::fields_username, TableInterface::column_type_VARCHAR, 128, '', '用户名')
-                  ->addColumn(self::fields_password, TableInterface::column_type_VARCHAR, 255, '', '密码')
+                  ->addColumn(self::fields_username, TableInterface::column_type_VARCHAR, 128, 'not null unique', '用户名')
+                  ->addColumn(self::fields_password, TableInterface::column_type_VARCHAR, 255, 'not null', '密码')
                   ->addColumn(self::fields_avatar, TableInterface::column_type_VARCHAR, 255, '', '头像')
                   ->addColumn(self::fields_login_ip, TableInterface::column_type_VARCHAR, 16, '', '登录IP')
                   ->addColumn(self::fields_sess_id, TableInterface::column_type_VARCHAR, 32, '', '管理员Session ID')
                   ->addColumn(self::fields_attempt_times, TableInterface::column_type_INTEGER, 0, 'default 0', '尝试登录次数')
                   ->addColumn(self::fields_attempt_ip, TableInterface::column_type_VARCHAR, 16, '', '尝试登录IP')
-                  ->addAdditional('ENGINE=MyIsam;')
                   ->create();
 
             # 初始化超管和管理员账户
-            $this->setUsername('秋枫雁飞')
-                 ->setEmail('system@weline.com')
-                 ->setPassword('admin')
-                 ->save();
             $this->clear()->setUsername('admin')
                  ->setEmail('admin@weline.com')
                  ->setPassword('admin')
