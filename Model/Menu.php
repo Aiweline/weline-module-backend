@@ -87,7 +87,7 @@ class Menu extends \Weline\Framework\Database\Model
                   ->addColumn(self::fields_NAME, TableInterface::column_type_VARCHAR, 60, 'not null', '菜单名')
                   ->addColumn(self::fields_TITLE, TableInterface::column_type_VARCHAR, 60, 'not null', '菜单标题')
                   ->addColumn(self::fields_PID, TableInterface::column_type_INTEGER, 0, '', '父级ID')
-                  ->addColumn(self::fields_SOURCE, TableInterface::column_type_VARCHAR, 255, 'unique', '资源')
+                  ->addColumn(self::fields_SOURCE, TableInterface::column_type_VARCHAR, 128, 'unique', '资源')
                   ->addColumn(self::fields_LEVEL, TableInterface::column_type_INTEGER, 0, 'default 0 ', '层级')
                   ->addColumn(self::fields_PATH, TableInterface::column_type_VARCHAR, 255, '', '路径')
                   ->addColumn(self::fields_PARENT_SOURCE, TableInterface::column_type_VARCHAR, 255, 'not null', '父级资源')
@@ -98,7 +98,6 @@ class Menu extends \Weline\Framework\Database\Model
                   ->addColumn(self::fields_IS_BACKEND, TableInterface::column_type_INTEGER, 1, 'default 1', '是否后台菜单')
                   ->addColumn(self::fields_IS_SYSTEM, TableInterface::column_type_INTEGER, 1, 'default 0', '是否系统菜单')
                   ->addColumn(self::fields_IS_ENABLE, TableInterface::column_type_INTEGER, 1, 'default 1', '是否启用')
-                  ->addIndex(Table::index_type_KEY, 'idx_source', self::fields_SOURCE, '资源唯一')
                   ->addAdditional('ENGINE=MyIsam;')
                   ->create();
         } else {
