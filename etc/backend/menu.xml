@@ -5,12 +5,13 @@
     <!--顶层：面板-->
     <add source="Weline_Backend::dashboard" name="system_dashboard" title="面板" action="admin" parent="" icon="mdi mdi-monitor-dashboard" order="0"/>
 
-    <!--顶层：系统-->
-    <add source="Weline_Backend::system_menu" name="system_menu" title="系统" action="" parent="" icon="ri-windows-line" order="1"/>
-
     <!--顶层：模组-->
     <add source="Weline_Backend::system_module" name="system_module" title="模组" action="" parent=""
          icon="ri-apps-2-line me-2" order="10000"/>
+
+    <!--顶层：系统-->
+    <add source="Weline_Backend::system_menu" name="system_menu" title="系统" action="" parent="" icon="ri-windows-line" order="20000"/>
+
     <!--顶层：系统配置-->
     <add source="Weline_Backend::system_configuration" name="system_configuration" title="系统配置" action="" parent=""
          icon="dripicons-gear" order="80000"/>
