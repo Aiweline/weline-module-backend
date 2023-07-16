@@ -48,11 +48,12 @@ class UpgradeMenu implements ObserverInterface
                     $menu[Menu::fields_PARENT_SOURCE] = '';
                     $menu[Menu::fields_PID]           = 0;
                     $menu[Menu::fields_LEVEL]         = 1;
+                    $menu[Menu::fields_ACTION]         = trim($menu[Menu::fields_ACTION], '/');
                     # 先查询一遍
                     /**@var Menu $menuModel */
                     $this->menu->clear();
                     // 以唯一source索引为准检测，存在更新不存在新增
-                    $result = $this->menu->setData($menu)->save(true, 'source'); 
+                    $result = $this->menu->setData($menu)->save(true, 'source');
                     $this->menu->setData([
                                              Menu::fields_PATH => $this->menu->getData(Menu::fields_ID),
                                          ])
@@ -68,6 +69,7 @@ class UpgradeMenu implements ObserverInterface
                 $this->menu->clear();
                 $menu[Menu::fields_MODULE]        = $module;
                 $menu[Menu::fields_PARENT_SOURCE] = $menu['parent'] ?? '';
+                $menu[Menu::fields_ACTION]         = trim($menu[Menu::fields_ACTION], '/');
                 unset($menu['parent']);
                 # 1 存在父资源 检查父资源的 ID
                 $parent = clone $this->menu->where(Menu::fields_SOURCE, $menu[Menu::fields_PARENT_SOURCE])->find()->fetch();
