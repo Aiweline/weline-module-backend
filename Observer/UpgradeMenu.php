@@ -37,6 +37,9 @@ class UpgradeMenu implements ObserverInterface
      */
     public function execute(Event $event)
     {
+        # 清空表
+        $this->menu->query("TRUNCATE TABLE {$this->menu->getTable()}")->fetch();
+        # 读取菜单配置
         $modules_xml_menus = $this->menuReader->read();
         # 先更新顶层菜单
         foreach ($modules_xml_menus as $module => &$menus) {
