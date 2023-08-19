@@ -17,9 +17,7 @@ $base_backend_api_host              = $this->request->getBaseHost() . '/' . \Wel
 $env_model                          = \Weline\Framework\App\Env::getInstance()->getConfig('deploy');
 $theme_path                         = \Weline\Framework\App\Env::getInstance()->getTheme()['path'];
 $env_model_media_base_path_template = $host . (DEV ? '{module}/view/statics/{path}' : 'static/' . $theme_path . '/{module}/view/statics/{path}');
-/**@var \Weline\Framework\Ui\FormKey $formKey*/
-$formKey = \Weline\Framework\Manager\ObjectManager::getInstance(\Weline\Framework\Ui\FormKey::class);
-$token = $formKey->getKey($this->request->getUrlBuilder()->getCurrentUrl());
+$token = \Weline\Framework\Security\Token::create('csrf',16,600);
 ?>
 <!--加载requirejs-->
 <?php if (DEV) : ?>
