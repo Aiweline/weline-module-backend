@@ -66,10 +66,10 @@ class BackendUser extends \Weline\Framework\Database\Model
                   ->addColumn(self::fields_username, TableInterface::column_type_VARCHAR, 128, 'not null unique', '用户名')
                   ->addColumn(self::fields_password, TableInterface::column_type_VARCHAR, 255, 'not null', '密码')
                   ->addColumn(self::fields_avatar, TableInterface::column_type_VARCHAR, 255, '', '头像')
-                  ->addColumn(self::fields_login_ip, TableInterface::column_type_VARCHAR, 16, '', '登录IP')
+                  ->addColumn(self::fields_login_ip, TableInterface::column_type_VARCHAR, 255, '', '登录IP')
                   ->addColumn(self::fields_sess_id, TableInterface::column_type_VARCHAR, 32, '', '管理员Session ID')
                   ->addColumn(self::fields_attempt_times, TableInterface::column_type_INTEGER, 0, 'default 0', '尝试登录次数')
-                  ->addColumn(self::fields_attempt_ip, TableInterface::column_type_VARCHAR, 16, '', '尝试登录IP')
+                  ->addColumn(self::fields_attempt_ip, TableInterface::column_type_VARCHAR, 255, '', '尝试登录IP')
                   ->create();
 
             # 初始化超管和管理员账户
