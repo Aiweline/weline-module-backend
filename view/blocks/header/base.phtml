@@ -9,6 +9,7 @@ $base_host = $this->request->getPrePath();
 //$http_host                          = explode('.', $this->request->getServer('HTTP_HOST'));
 //$domain                             = array_pop($http_host);
 //$domain                             = array_pop($http_host) . '.' . $domain;
+//dd($domain);
 $base_router                        = $this->request->getRouterData('router');
 $current_module                     = $this->request->getModuleName();
 $base_backend                       = \Weline\Framework\App\Env::getInstance()->getConfig('admin');
@@ -94,7 +95,7 @@ endif;
     }
 
     function selectLanguage(lang) {
-        setCookie('WELINE-USER-LANG', lang, 7, {path: '/{{base_backend}}'/*, domain: '{{domain}}'*/});
+        setCookie('WELINE-USER-LANG', lang, 7, {path: '/{{base_backend}}'});
         window.location.reload();
     }
 
