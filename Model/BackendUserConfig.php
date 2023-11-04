@@ -11,7 +11,10 @@ declare(strict_types=1);
 
 namespace Weline\Backend\Model;
 
+use Weline\Backend\Session\BackendSession;
+use Weline\Framework\App\Env;
 use Weline\Framework\Database\AbstractModel;
+use Weline\Framework\Database\Api\Db\TableInterface;
 use Weline\Framework\Database\Db\Ddl\Table;
 use Weline\Framework\Manager\ObjectManager;
 use Weline\Framework\Setup\Data\Context;
@@ -19,15 +22,22 @@ use Weline\Framework\Setup\Db\ModelSetup;
 
 class BackendUserConfig extends \Weline\Framework\Database\Model
 {
-    public const fields_ID     = 'backend_user_id';
-    public const fields_config = 'config';
+    public const fields_ID = 'user_id';
+    public const fields_value = 'value';
+    public const fields_key = 'key';
+    public const fields_module = 'module';
+
+    private $config = [];
+    private $defaul_tconfig = [];
+
+    public array $_index_sort_keys = [self::fields_ID, self::fields_key];
 
     /**
      * @inheritDoc
      */
     public function setup(ModelSetup $setup, Context $context): void
     {
-//        $setup->dropTable();
+        //        $setup->dropTable();
         $this->install($setup, $context);
     }
 
@@ -44,54 +54,132 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
      */
     public function install(ModelSetup $setup, Context $context): void
     {
-//        $setup->dropTable();
+        $setup->dropTable();
         if (!$setup->tableExist()) {
             $setup->createTable()
-                  ->addColumn(self::fields_ID, Table::column_type_INTEGER, null, 'primary key', '管理员ID')
-                  ->addColumn(self::fields_config, Table::column_type_TEXT, null, '', '配置JSON信息')
-                  ->addAdditional('ENGINE=MyIsam;')
-                  ->create();
-            /**@var Config $config */
-            $config = ObjectManager::getInstance(Config::class);
-            $config->setConfig('admin_default_avatar', 'Weline_Admin::/img/logo.png', 'Weline_Admin');
-            $setup->getPrinting()->printing('admin_default_avatar', 'Weline_Admin::/img/logo.png');
+                ->addColumn(self::fields_ID, Table::column_type_INTEGER, null, 'not null', '管理员ID')
+                ->addColumn(self::fields_key, Table::column_type_VARCHAR, 255, 'not null', '配置key')
+                ->addColumn(self::fields_value, Table::column_type_TEXT, 0, '', '配置信息')
+                ->addColumn(self::fields_module, Table::column_type_VARCHAR, 255, 'not null', '模组')
+                # 建立联合索引
+                ->addAdditional(
+                    'PRIMARY KEY (`' . self::fields_ID . '`,`' . self::fields_key . '`) USING BTREE'
+                )
+                ->addAdditional('ENGINE=MyIsam;')
+                ->create();
         }
     }
 
-    public function setAdminUserId(int $admin_user_id)
+    /** 返回配置
+     * @param string $key
+     * @param bool $real
+     * @return string
+     */
+    public function getConfig(string $key, bool $real = false): string
     {
-        return $this->setData(self::fields_ID, $admin_user_id);
+        if (CLI) {
+            return $this->getDefaultConfig($key);
+        }
+        if ($real) {
+            /**@var BackendSession $userSession */
+            $userSession = ObjectManager::getInstance(BackendSession::class);
+            return $this->clear()->where(self::fields_ID, $userSession->getLoginUserID())
+                ->where(self::fields_key, $key)
+                ->find()
+                ->fetchOrigin()['value'] ?? '';
+        }
+        if (isset($this->config[$key])) {
+            return $this->config[$key];
+        }
+        # 读取用户全部配置
+        /**@var BackendSession $userSession */
+        $userSession = ObjectManager::getInstance(BackendSession::class);
+        $configs = $this->clear()
+            ->where(self::fields_ID, $userSession->getLoginUserID())
+            ->select()
+            ->fetchOrigin();
+        foreach ($configs as $config) {
+            $this->config[$config['key']] = $config['value'];
+        }
+        return $this->config[$key] ?? '';
     }
 
-    public function addConfig(string|array $key, mixed $data = null): static
+    public function getDefaultConfig(string $key): string
     {
+        if (isset($this->defaul_tconfig[$key])) {
+            return $this->defaul_tconfig[$key];
+        }
+        # 读取默认配置
         try {
-            $config = $this->getOriginConfig() ? json_decode($this->getOriginConfig(), true) : [];
-        } catch (\Exception $exception) {
-            $config = [];
+            $configs = $this->clear()
+                ->where(self::fields_ID, 0)
+                ->select()
+                ->fetchOrigin();
+        } catch (\Throwable $e) {
+            $configs = [];
         }
-        if (is_array($key)) {
-            $config = array_merge($config, $key);
-        } else {
-            $config[$key] = $data;
+        foreach ($configs as $config) {
+            $this->defaul_tconfig[$config['key']] = $config['value'];
         }
-        $this->setData(self::fields_config, json_encode($config));
-        return $this;
+        return $this->defaul_tconfig[$key] ?? '';
     }
 
-    public function getOriginConfig()
+    /**
+     * 设置用户配置
+     * @param string $key
+     * @param string $value
+     * @param string $module
+     * @throws \Exception
+     */
+    public function setConfig(string $key, string $value, string $module): bool
     {
-        return $this->getData(self::fields_config);
+        if (CLI) {
+            return $this->setDefaultConfig($key, $value, $module);
+        }
+        # 检测模组
+        $moduleInfo = Env::getInstance()->getModuleInfo($module);
+        if (!$moduleInfo) {
+            if (DEV) {
+                throw new \Exception('找不到模组' . $module);
+            }
+            return false;
+        }
+        # 设置用户配置
+        /**@var BackendSession $userSession */
+        $userSession = ObjectManager::getInstance(BackendSession::class);
+        return $this->clear()
+            ->setData(self::fields_key, $key)
+            ->setData(self::fields_value, $value)
+            ->setData(self::fields_ID, $userSession->getLoginUserID())
+            ->setData(self::fields_module, $module)
+            ->save(true) ? true : false;
     }
 
-    public function getConfig(string $key)
+    /**
+     * 设置默认配置
+     * @param string $key
+     * @param string $value
+     * @param string $module
+     * @return bool
+     * @throws \Exception
+     */
+    public function setDefaultConfig(string $key, string $value, string $module): bool|int
     {
-        try {
-            $config = $this->getOriginConfig() ? json_decode($this->getOriginConfig(), true) : [];
-            return $config[$key] ?? '';
-        } catch (\Exception $exception) {
-            return '';
+        # 检测模组
+        $moduleInfo = Env::getInstance()->getModuleInfo($module);
+        if (!$moduleInfo) {
+            if (DEV) {
+                throw new \Exception('找不到模组' . $module);
+            }
+            return false;
         }
+        # 设置默认配置
+        return $this->clear()
+            ->setData(self::fields_key, $key)
+            ->setData(self::fields_value, $value)
+            ->setData(self::fields_ID, 0)
+            ->setData(self::fields_module, $module)
+            ->save(true) ? true : false;
     }
 
     public function save(array|bool|AbstractModel $data = [], string|array $sequence = null): bool|int
