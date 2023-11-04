@@ -26,6 +26,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
     public const fields_value = 'value';
     public const fields_key = 'key';
     public const fields_module = 'module';
+    public const fields_name = 'name';
 
     private $config = [];
     private $defaul_tconfig = [];
@@ -54,13 +55,14 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
      */
     public function install(ModelSetup $setup, Context $context): void
     {
-        $setup->dropTable();
+//        $setup->dropTable();
         if (!$setup->tableExist()) {
             $setup->createTable()
                 ->addColumn(self::fields_ID, Table::column_type_INTEGER, null, 'not null', '管理员ID')
                 ->addColumn(self::fields_key, Table::column_type_VARCHAR, 255, 'not null', '配置key')
                 ->addColumn(self::fields_value, Table::column_type_TEXT, 0, '', '配置信息')
                 ->addColumn(self::fields_module, Table::column_type_VARCHAR, 255, 'not null', '模组')
+                ->addColumn(self::fields_name, Table::column_type_VARCHAR, 255, 'not null', '配置名')
                 # 建立联合索引
                 ->addAdditional(
                     'PRIMARY KEY (`' . self::fields_ID . '`,`' . self::fields_key . '`) USING BTREE'
@@ -131,10 +133,10 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
      * @param string $module
      * @throws \Exception
      */
-    public function setConfig(string $key, string $value, string $module): bool
+    public function setConfig(string $key, string $value, string $module, string $name): bool
     {
         if (CLI) {
-            return $this->setDefaultConfig($key, $value, $module);
+            return $this->setDefaultConfig($key, $value, $module, $name);
         }
         # 检测模组
         $moduleInfo = Env::getInstance()->getModuleInfo($module);
@@ -152,6 +154,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
             ->setData(self::fields_value, $value)
             ->setData(self::fields_ID, $userSession->getLoginUserID())
             ->setData(self::fields_module, $module)
+            ->setData(self::fields_name, $name)
             ->save(true) ? true : false;
     }
 
@@ -163,7 +166,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
      * @return bool
      * @throws \Exception
      */
-    public function setDefaultConfig(string $key, string $value, string $module): bool|int
+    public function setDefaultConfig(string $key, string $value, string $module, string $name): bool|int
     {
         # 检测模组
         $moduleInfo = Env::getInstance()->getModuleInfo($module);
@@ -179,6 +182,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
             ->setData(self::fields_value, $value)
             ->setData(self::fields_ID, 0)
             ->setData(self::fields_module, $module)
+            ->setData(self::fields_name, $name)
             ->save(true) ? true : false;
     }
 
