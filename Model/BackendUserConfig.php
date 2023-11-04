@@ -58,7 +58,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
 //        $setup->dropTable();
         if (!$setup->tableExist()) {
             $setup->createTable()
-                ->addColumn(self::fields_ID, Table::column_type_INTEGER, null, 'not null', '管理员ID')
+                ->addColumn(self::fields_ID, Table::column_type_INTEGER, null, 'default 0', '管理员ID:0表示默认全局配置')
                 ->addColumn(self::fields_key, Table::column_type_VARCHAR, 255, 'not null', '配置key')
                 ->addColumn(self::fields_value, Table::column_type_TEXT, 0, '', '配置信息')
                 ->addColumn(self::fields_module, Table::column_type_VARCHAR, 255, 'not null', '模组')
