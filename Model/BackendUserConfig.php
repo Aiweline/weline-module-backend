@@ -22,7 +22,8 @@ use Weline\Framework\Setup\Db\ModelSetup;
 
 class BackendUserConfig extends \Weline\Framework\Database\Model
 {
-    public const fields_ID = 'user_id';
+    public const fields_ID = 'config_id';
+    public const fields_user_id = 'user_id';
     public const fields_value = 'value';
     public const fields_key = 'key';
     public const fields_module = 'module';
@@ -58,14 +59,15 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
 //        $setup->dropTable();
         if (!$setup->tableExist()) {
             $setup->createTable()
-                ->addColumn(self::fields_ID, Table::column_type_INTEGER, null, 'default 0', '管理员ID:0表示默认全局配置')
+                ->addColumn(self::fields_ID, Table::column_type_INTEGER, null, 'primary key auto_increment', '配置ID')
+                ->addColumn(self::fields_user_id, Table::column_type_INTEGER, null, 'default 0', '管理员ID:0表示默认全局配置')
                 ->addColumn(self::fields_key, Table::column_type_VARCHAR, 255, 'not null', '配置key')
                 ->addColumn(self::fields_value, Table::column_type_TEXT, 0, '', '配置信息')
                 ->addColumn(self::fields_module, Table::column_type_VARCHAR, 255, 'not null', '模组')
                 ->addColumn(self::fields_name, Table::column_type_VARCHAR, 255, 'not null', '配置名')
                 # 建立联合索引
                 ->addAdditional(
-                    'PRIMARY KEY (`' . self::fields_ID . '`,`' . self::fields_key . '`) USING BTREE'
+                    'PRIMARY KEY (`' . self::fields_user_id . '`,`' . self::fields_key . '`) USING BTREE'
                 )
                 ->addAdditional('ENGINE=MyIsam;')
                 ->create();
@@ -149,13 +151,13 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
         # 设置用户配置
         /**@var BackendSession $userSession */
         $userSession = ObjectManager::getInstance(BackendSession::class);
-        return $this->clear()
-            ->setData(self::fields_key, $key)
-            ->setData(self::fields_value, $value)
-            ->setData(self::fields_ID, $userSession->getLoginUserID())
-            ->setData(self::fields_module, $module)
-            ->setData(self::fields_name, $name)
-            ->save(true) ? true : false;
+        return (bool)$this->clear()
+            ->setData(self::fields_key, $key, true)
+            ->setData(self::fields_value, $value, true)
+            ->setData(self::fields_user_id, $userSession->getLoginUserID(), true)
+            ->setData(self::fields_module, $module, true)
+            ->setData(self::fields_name, $name, true)
+            ->save(true);
     }
 
     /**
@@ -177,13 +179,13 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
             return false;
         }
         # 设置默认配置
-        return $this->clear()
-            ->setData(self::fields_key, $key)
-            ->setData(self::fields_value, $value)
-            ->setData(self::fields_ID, 0)
-            ->setData(self::fields_module, $module)
-            ->setData(self::fields_name, $name)
-            ->save(true) ? true : false;
+        return (bool)$this->clear()
+            ->setData(self::fields_key, $key, true)
+            ->setData(self::fields_value, $value, true)
+            ->setData(self::fields_user_id, 0, true)
+            ->setData(self::fields_module, $module, true)
+            ->setData(self::fields_name, $name, true)
+            ->save(true);
     }
 
     public function save(array|bool|AbstractModel $data = [], string|array $sequence = null): bool|int
