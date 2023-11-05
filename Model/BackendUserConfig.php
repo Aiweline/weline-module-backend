@@ -14,7 +14,6 @@ namespace Weline\Backend\Model;
 use Weline\Backend\Session\BackendSession;
 use Weline\Framework\App\Env;
 use Weline\Framework\Database\AbstractModel;
-use Weline\Framework\Database\Api\Db\TableInterface;
 use Weline\Framework\Database\Db\Ddl\Table;
 use Weline\Framework\Manager\ObjectManager;
 use Weline\Framework\Setup\Data\Context;
