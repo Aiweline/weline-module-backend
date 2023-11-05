@@ -59,7 +59,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
 //        $setup->dropTable();
         if (!$setup->tableExist()) {
             $setup->createTable()
-                ->addColumn(self::fields_ID, Table::column_type_INTEGER, null, 'primary key auto_increment', '配置ID')
+                ->addColumn(self::fields_ID, Table::column_type_INTEGER, null, 'PRIMARY KEY auto_increment', '配置ID')
                 ->addColumn(self::fields_user_id, Table::column_type_INTEGER, null, 'default 0', '管理员ID:0表示默认全局配置')
                 ->addColumn(self::fields_key, Table::column_type_VARCHAR, 255, 'not null', '配置key')
                 ->addColumn(self::fields_value, Table::column_type_TEXT, 0, '', '配置信息')
@@ -67,7 +67,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
                 ->addColumn(self::fields_name, Table::column_type_VARCHAR, 255, 'not null', '配置名')
                 # 建立联合索引
                 ->addAdditional(
-                    'PRIMARY KEY (`' . self::fields_user_id . '`,`' . self::fields_key . '`) USING BTREE'
+                    'PRIMARY KEY (`' . self::fields_ID . '`,`' . self::fields_user_id . '`,`' . self::fields_key . '`) USING BTREE'
                 )
                 ->addAdditional('ENGINE=MyIsam;')
                 ->create();
@@ -87,7 +87,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
         if ($real) {
             /**@var BackendSession $userSession */
             $userSession = ObjectManager::getInstance(BackendSession::class);
-            return $this->clear()->where(self::fields_ID, $userSession->getLoginUserID())
+            return $this->clear()->where(self::fields_user_id, $userSession->getLoginUserID())
                 ->where(self::fields_key, $key)
                 ->find()
                 ->fetchOrigin()['value'] ?? '';
@@ -99,7 +99,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
         /**@var BackendSession $userSession */
         $userSession = ObjectManager::getInstance(BackendSession::class);
         $configs = $this->clear()
-            ->where(self::fields_ID, $userSession->getLoginUserID())
+            ->where(self::fields_user_id, $userSession->getLoginUserID())
             ->select()
             ->fetchOrigin();
         foreach ($configs as $config) {
@@ -116,7 +116,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
         # 读取默认配置
         try {
             $configs = $this->clear()
-                ->where(self::fields_ID, 0)
+                ->where(self::fields_user_id, 0)
                 ->select()
                 ->fetchOrigin();
         } catch (\Throwable $e) {
@@ -181,7 +181,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
         # 设置默认配置
         return (bool)$this->clear()
             ->setData(self::fields_key, $key, true)
-            ->setData(self::fields_value, $value, true)
+            ->setData(self::fields_value, $value)
             ->setData(self::fields_user_id, 0, true)
             ->setData(self::fields_module, $module, true)
             ->setData(self::fields_name, $name, true)
