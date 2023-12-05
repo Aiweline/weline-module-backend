@@ -21,12 +21,12 @@ use Weline\Framework\Setup\Db\ModelSetup;
 
 class BackendUserConfig extends \Weline\Framework\Database\Model
 {
-    public const fields_ID = 'config_id';
+    public const fields_ID      = 'config_id';
     public const fields_user_id = 'user_id';
-    public const fields_value = 'value';
-    public const fields_key = 'key';
-    public const fields_module = 'module';
-    public const fields_name = 'name';
+    public const fields_value   = 'value';
+    public const fields_key     = 'key';
+    public const fields_module  = 'module';
+    public const fields_name    = 'name';
 
     private $config = [];
     private $defaul_tconfig = [];
@@ -97,7 +97,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
         # 读取用户全部配置
         /**@var BackendSession $userSession */
         $userSession = ObjectManager::getInstance(BackendSession::class);
-        $configs = $this->clear()
+        $configs     = $this->clear()
             ->where(self::fields_user_id, $userSession->getLoginUserID())
             ->select()
             ->fetchOrigin();
@@ -134,19 +134,22 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
      * @param string $module
      * @throws \Exception
      */
-    public function setConfig(string $key, string $value, string $module, string $name): bool
+    public function setConfig(string $key, string $value, string $module, string $name,$check = true): bool
     {
         if (CLI) {
             return $this->setDefaultConfig($key, $value, $module, $name);
         }
-        # 检测模组
-        $moduleInfo = Env::getInstance()->getModuleInfo($module);
-        if (!$moduleInfo) {
-            if (DEV) {
-                throw new \Exception('找不到模组' . $module);
+        if($check){
+            # 检测模组
+            $moduleInfo = Env::getInstance()->getModuleInfo($module);
+            if (!$moduleInfo) {
+                if (DEV) {
+                    throw new \Exception('找不到模组' . $module);
+                }
+                return false;
             }
-            return false;
         }
+
         # 设置用户配置
         /**@var BackendSession $userSession */
         $userSession = ObjectManager::getInstance(BackendSession::class);
@@ -167,15 +170,17 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
      * @return bool
      * @throws \Exception
      */
-    public function setDefaultConfig(string $key, string $value, string $module, string $name): bool|int
+    public function setDefaultConfig(string $key, string $value, string $module, string $name, $check = true): bool|int
     {
-        # 检测模组
-        $moduleInfo = Env::getInstance()->getModuleInfo($module);
-        if (!$moduleInfo) {
-            if (DEV) {
-                throw new \Exception('找不到模组' . $module);
+        if ($check) {
+            # 检测模组
+            $moduleInfo = Env::getInstance()->getModuleInfo($module);
+            if (!$moduleInfo) {
+                if (DEV) {
+                    throw new \Exception('找不到模组' . $module);
+                }
+                return false;
             }
-            return false;
         }
         # 设置默认配置
         return (bool)$this->clear()
