@@ -63,7 +63,7 @@ class BackendUserData extends Model
                     self::fields_JSON,
                     'json',
                     0,
-                    "not null default '{}'",
+                    "not null",
                     'json数据'
                 )
                 ->create();
