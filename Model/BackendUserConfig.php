@@ -98,9 +98,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
         /**@var BackendSession $userSession */
         $userSession = ObjectManager::getInstance(BackendSession::class);
         $configs     = $this->clear()
-            ->where(self::fields_user_id, $userSession->getLoginUserID(), '=','or')
-            ->where(self::fields_user_id, 0)
-            ->order(self::fields_user_id, 'asc')
+            ->where(self::fields_user_id, $userSession->getLoginUserID())
             ->select()
             ->fetchOrigin();
         foreach ($configs as $config) {
