@@ -134,12 +134,12 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
      * @param string $module
      * @throws \Exception
      */
-    public function setConfig(string $key, string $value, string $module, string $name,$check = true): bool
+    public function setConfig(string $key, string $value, string $module, string $name, $check = true): bool
     {
         if (CLI) {
             return $this->setDefaultConfig($key, $value, $module, $name);
         }
-        if($check){
+        if ($check) {
             # 检测模组
             $moduleInfo = Env::getInstance()->getModuleInfo($module);
             if (!$moduleInfo) {

@@ -63,9 +63,13 @@ class UserData extends BackendController
         $backendUserData->setData(BackendUserData::fields_JSON, json_encode($json));
         $backendUserData->save(true);
         $backendUserData->unsetData(BackendUserData::fields_BACKEND_USER_ID);
+        $data = $backendUserData->getData();
+        $json_format = json_decode($data['json']);
         return $this->fetchJson([
             'code' => 200,
             'msg' => '保存成功',
-            'data' => $backendUserData->getData()]);
+            'data' => $data,
+            'json' => $json_format
+        ]);
     }
 }
