@@ -323,7 +323,7 @@ class Menu extends \Weline\Framework\Database\Model
             // 以子权限扫描所有权限的父级
             $roleAccesses = $model->clear()
                 ->joinModel(Menu::class, 'menu', 'main_table.source_id=menu.source', 'right')
-                ->where('menu.source', $roleAccessSources, '=', 'or')
+                ->where('menu.source', $roleAccessSources, 'in')
                 ->select()
                 ->fetch()
                 ->getItems();
