@@ -2,7 +2,9 @@
 
 namespace Weline\Backend\Model;
 
+use Weline\Backend\Session\BackendSession;
 use Weline\Framework\Database\Model;
+use Weline\Framework\Manager\ObjectManager;
 use Weline\Framework\Setup\Data\Context;
 use Weline\Framework\Setup\Db\ModelSetup;
 
@@ -68,5 +70,25 @@ class BackendUserData extends Model
                 )
                 ->create();
         }
+    }
+
+    function getScope(string $scope): array
+    {
+        /**
+         * @var BackendSession $session
+         */
+        $session = ObjectManager::getInstance(BackendSession::class);
+        if (!$session->getLoginUserID()) {
+            return [];
+        }
+        $data = $this->where(self::fields_BACKEND_USER_ID, $session->getLoginUserID())
+            ->where(self::fields_scope, $scope)
+            ->find()
+            ->fetch();
+        $json = $data['json'] ?? null;
+        if (!$json) {
+            return [];
+        }
+        return json_decode($json, true);
     }
 }
