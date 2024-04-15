@@ -172,15 +172,15 @@ class UpgradeMenu implements ObserverInterface
     private function replaceModuleAction(mixed $menu, array &$modules_info, mixed $module): array
     {
         if (strpos($menu[Menu::fields_ACTION], '*') !== false) {
-            $module = $modules_info[$menu['module']] ?? [];
-            if (empty($module)) {
-                $module                        = Env::getInstance()->getModuleInfo($menu['module']);
-                $modules_info[$menu['module']] = $module;
-                if (empty($module)) {
-                    throw new \Exception(__('模块不存在：%1', $module['name']));
+            $module_info = $modules_info[$menu['module']] ?? [];
+            if (empty($module_info)) {
+                $module_info                        = Env::getInstance()->getModuleInfo($menu['module']);
+                $modules_info[$menu['module']] = $module_info;
+                if (empty($module_info)) {
+                    throw new \Exception(__('模块不存在：%1', $module_info['name']));
                 }
             }
-            $menu[Menu::fields_ACTION] = str_replace('*', $module['router'], $menu[Menu::fields_ACTION]);
+            $menu[Menu::fields_ACTION] = str_replace('*', $module_info['router'], $menu[Menu::fields_ACTION]);
         }
         return array($module, $menu);
     }
