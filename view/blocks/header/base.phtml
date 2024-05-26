@@ -7,19 +7,19 @@ use Weline\Framework\App\Env;
 $themeConfig = \Weline\Framework\Manager\ObjectManager::getInstance(\Weline\Backend\Block\ThemeConfig::class);
 ?>
 <?php
-$host = $this->request->getBaseHost() . '/';
+$host      = $this->request->getBaseHost() . '/';
 $base_host = $this->request->getPrePath();
 //$http_host                          = explode('.', $this->request->getServer('HTTP_HOST'));
 //$domain                             = array_pop($http_host);
 //$domain                             = array_pop($http_host) . '.' . $domain;
 //dd($domain);
-$base_router = $this->request->getRouterData('router');
-$current_module = $this->request->getModuleName();
-$area = \Weline\Framework\App\Env::getInstance()->getConfig('admin');
-$url_host = $this->request->getBaseHost() . '/' . $area . '/';
-$api_host = $this->request->getBaseHost() . '/' . \Weline\Framework\App\Env::getInstance()->getConfig('api_admin') . '/';
-$env_model = \Weline\Framework\App\Env::getInstance()->getConfig('deploy');
-$theme_path = str_replace('\\', '/', \Weline\Framework\App\Env::getInstance()->getTheme()['path']);
+$base_router                        = $this->request->getRouterData('router');
+$current_module                     = $this->request->getModuleName();
+$area                       = \Weline\Framework\App\Env::getInstance()->getConfig('admin');
+$url_host              = $this->request->getBaseHost() . '/' . $area . '/';
+$api_host              = $this->request->getBaseHost() . '/' . \Weline\Framework\App\Env::getInstance()->getConfig('api_admin') . '/';
+$env_model                          = \Weline\Framework\App\Env::getInstance()->getConfig('deploy');
+$theme_path                         = str_replace('\\', '/', \Weline\Framework\App\Env::getInstance()->getTheme()['path']);
 $env_model_media_base_path_template = $host . (DEV ? '{module}/view/statics/{path}' : 'static/' . $theme_path . '/{module}/view/statics/{path}');
 $token = \Weline\Framework\Security\Token::create('csrf', 16, 600);
 ?>
@@ -42,7 +42,7 @@ endif;
             'X-CSRF-TOKEN': '{{token}}'
         }
     });
-    $.ajaxPrefilter(function (options) {
+    $.ajaxPrefilter(function(options) {
         // 检测url是否有参数，并给所有url加上isAjax参数
         if (options.url.indexOf('?') < 0) {
             options.url += '?isAjax=1';
@@ -61,8 +61,8 @@ endif;
         api_host: '{{api_host}}',
         url_host: '{{ url_host }}',
         base_router: '{{base_router}}',
-        i18n: <?= json_encode(Weline\Framework\Phrase\Parser::getWords())?>,
-        themeConfig: <?=json_encode($themeConfig->getThemeConfig()) ?? '{}';?>,
+        i18n: <?= json_encode(Weline\Framework\Phrase\Parser::getWords())?> ,
+        themeConfig: <?=json_encode($themeConfig->getThemeConfig()) ?? '{}';?> ,
     }
     window.path = (path) => {
         path = path.replace('*', '{{base_router}}')
