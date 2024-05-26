@@ -32,20 +32,20 @@ class Menu extends \Weline\Framework\Database\Model
     public array $_unit_primary_keys = ['menu_id', 'source'];
     public array $_index_sort_keys = ['menu_id', 'source'];
 
-    public const fields_NAME          = 'name';
-    public const fields_TITLE         = 'title';
-    public const fields_PID           = 'pid';
-    public const fields_SOURCE        = 'source';
-    public const fields_LEVEL         = 'level';
-    public const fields_PATH          = 'path';
+    public const fields_NAME = 'name';
+    public const fields_TITLE = 'title';
+    public const fields_PID = 'pid';
+    public const fields_SOURCE = 'source';
+    public const fields_LEVEL = 'level';
+    public const fields_PATH = 'path';
     public const fields_PARENT_SOURCE = 'parent_source';
-    public const fields_ACTION        = 'action';
-    public const fields_MODULE        = 'module';
-    public const fields_ICON          = 'icon';
-    public const fields_ORDER         = 'order';
-    public const fields_IS_SYSTEM     = 'is_system';
-    public const fields_IS_ENABLE     = 'is_enable';
-    public const fields_IS_BACKEND    = 'is_backend';
+    public const fields_ACTION = 'action';
+    public const fields_MODULE = 'module';
+    public const fields_ICON = 'icon';
+    public const fields_ORDER = 'order';
+    public const fields_IS_SYSTEM = 'is_system';
+    public const fields_IS_ENABLE = 'is_enable';
+    public const fields_IS_BACKEND = 'is_backend';
 
     private Url $url;
 
@@ -83,24 +83,23 @@ class Menu extends \Weline\Framework\Database\Model
 //        $setup->dropTable();
         if (!$setup->tableExist()) {
             $setup->createTable('后端菜单表')
-                  ->addColumn(self::fields_ID, TableInterface::column_type_INTEGER, null, 'primary key auto_increment', 'ID')
-                  ->addColumn(self::fields_NAME, TableInterface::column_type_VARCHAR, 60, 'not null', '菜单名')
-                  ->addColumn(self::fields_TITLE, TableInterface::column_type_VARCHAR, 60, 'not null', '菜单标题')
-                  ->addColumn(self::fields_PID, TableInterface::column_type_INTEGER, 0, '', '父级ID')
-                  ->addColumn(self::fields_SOURCE, TableInterface::column_type_VARCHAR, 255, 'unique', '资源')
-                  ->addColumn(self::fields_LEVEL, TableInterface::column_type_INTEGER, 0, 'default 0 ', '层级')
-                  ->addColumn(self::fields_PATH, TableInterface::column_type_VARCHAR, 255, '', '路径')
-                  ->addColumn(self::fields_PARENT_SOURCE, TableInterface::column_type_VARCHAR, 255, 'not null', '父级资源')
-                  ->addColumn(self::fields_ACTION, TableInterface::column_type_VARCHAR, 255, 'not null', '动作URL')
-                  ->addColumn(self::fields_MODULE, TableInterface::column_type_VARCHAR, 255, 'not null', '模块')
-                  ->addColumn(self::fields_ICON, TableInterface::column_type_VARCHAR, 60, 'not null', 'Icon图标类')
-                  ->addColumn(self::fields_ORDER, TableInterface::column_type_INTEGER, null, 'not null', '排序')
-                  ->addColumn(self::fields_IS_BACKEND, TableInterface::column_type_INTEGER, 1, 'default 1', '是否后台菜单')
-                  ->addColumn(self::fields_IS_SYSTEM, TableInterface::column_type_INTEGER, 1, 'default 0', '是否系统菜单')
-                  ->addColumn(self::fields_IS_ENABLE, TableInterface::column_type_INTEGER, 1, 'default 1', '是否启用')
-                  ->addIndex(Table::index_type_KEY, 'idx_source', self::fields_SOURCE, '资源唯一')
-                  ->addAdditional('ENGINE=MyIsam;')
-                  ->create();
+                ->addColumn(self::fields_ID, TableInterface::column_type_INTEGER, null, 'primary key auto_increment', 'ID')
+                ->addColumn(self::fields_NAME, TableInterface::column_type_VARCHAR, 60, 'not null', '菜单名')
+                ->addColumn(self::fields_TITLE, TableInterface::column_type_VARCHAR, 60, 'not null', '菜单标题')
+                ->addColumn(self::fields_PID, TableInterface::column_type_INTEGER, 0, '', '父级ID')
+                ->addColumn(self::fields_SOURCE, TableInterface::column_type_VARCHAR, 128, 'unique', '资源')
+                ->addColumn(self::fields_LEVEL, TableInterface::column_type_INTEGER, 0, 'default 0 ', '层级')
+                ->addColumn(self::fields_PATH, TableInterface::column_type_VARCHAR, 255, '', '路径')
+                ->addColumn(self::fields_PARENT_SOURCE, TableInterface::column_type_VARCHAR, 255, 'not null', '父级资源')
+                ->addColumn(self::fields_ACTION, TableInterface::column_type_VARCHAR, 255, 'not null', '动作URL')
+                ->addColumn(self::fields_MODULE, TableInterface::column_type_VARCHAR, 255, 'not null', '模块')
+                ->addColumn(self::fields_ICON, TableInterface::column_type_VARCHAR, 60, 'not null', 'Icon图标类')
+                ->addColumn(self::fields_ORDER, TableInterface::column_type_INTEGER, null, 'not null', '排序')
+                ->addColumn(self::fields_IS_BACKEND, TableInterface::column_type_INTEGER, 1, 'default 1', '是否后台菜单')
+                ->addColumn(self::fields_IS_SYSTEM, TableInterface::column_type_INTEGER, 1, 'default 0', '是否系统菜单')
+                ->addColumn(self::fields_IS_ENABLE, TableInterface::column_type_INTEGER, 1, 'default 1', '是否启用')
+                ->addAdditional('ENGINE=MyIsam;')
+                ->create();
         } else {
             $setup->getPrinting()->warning('数据表存在，跳过安装数据表...' . self::table);
         }
@@ -278,11 +277,11 @@ class Menu extends \Weline\Framework\Database\Model
     public function getSubMenus(\Weline\Backend\Model\Menu &$menu): Menu
     {
         if ($sub_menus = $this->clear()
-                              ->where($this::fields_PID, $menu->getData('id'))
-                              ->order('order', 'ASC')
-                              ->select()
-                              ->fetch()
-                              ->getItems()
+            ->where($this::fields_PID, $menu->getData('id'))
+            ->order('order', 'ASC')
+            ->select()
+            ->fetch()
+            ->getItems()
         ) {
             /**@var \Weline\Backend\Model\Menu $sub_menu */
             foreach ($sub_menus as &$sub_menu) {
@@ -323,15 +322,16 @@ class Menu extends \Weline\Framework\Database\Model
             $roleAccessSources = $this->getRoleAccessSources($role);
             // 以子权限扫描所有权限的父级
             $roleAccesses = $model->clear()
-                                  ->joinModel(Menu::class, 'menu', 'main_table.source_id=menu.source', 'right')
-                                  ->where('menu.source', $roleAccessSources, '=', 'or')
-                                  ->select()
-                                  ->fetch()
-                                  ->getItems();
+                ->joinModel(Menu::class, 'menu', 'main_table.source_id=menu.source', 'right')
+                ->where('menu.source', $roleAccessSources, 'in')
+                ->select()
+                ->fetch()
+                ->getItems();
             // 归并所有相同父级的权限,同时筛选出父级权限资源递归出子权限
             $mergerParentAcl = [];
             $top_menus       = [];
-            $checked_menus   = [];
+
+            $checked_menus = [];
             /**@var Acl[] $roleAccesses */
             foreach ($roleAccesses as $roleAccess) {
                 $source = $roleAccess['parent_source'];
@@ -343,14 +343,12 @@ class Menu extends \Weline\Framework\Database\Model
                     // 归并需要查找父级的子权限
                     if (!isset($mergerParentAcl[$source])) {
                         /**@var Acl $menu */
-                        $menu                                = clone $model->clear()
-                                                                           ->joinModel(RoleAccess::class, 'ra', 'ra.source_id=main_table
-                                                                           .source_id', 'right')
-                                                                           ->joinModel(Menu::class, 'menu', 'ra.source_id=menu.source', 'right')
-                                                                           ->where('main_table.source_id', $source)
-                                                                           ->order('menu.order', 'asc')
-                                                                           ->find()
-                                                                           ->fetch();
+                        $menu = clone $model->clear()
+                            ->joinModel(Menu::class, 'menu', 'main_table.source_id=menu.source', 'right')
+                            ->where('main_table.source_id', $source)
+                            ->order('menu.order', 'asc')
+                            ->find()
+                            ->fetch();
                         $roleAccess                          = $this->getSubMenusByRole($menu, $role);
                         $checked_menus[$menu->getSourceId()] = $roleAccess;
                         $mergerParentAcl[$source]            = $roleAccess;
@@ -364,12 +362,12 @@ class Menu extends \Weline\Framework\Database\Model
             }
         } else {
             $top_menus = $model->clear()
-                               ->joinModel(Menu::class, 'menu', 'main_table.source_id=menu.source')
-                               ->where('main_table.parent_source is null or main_table.parent_source=""')
-                               ->order('menu.order', 'asc')
-                               ->group('main_table.acl_id')
-                               ->select()->fetch()
-                               ->getItems();
+                ->joinModel(Menu::class, 'menu', 'main_table.source_id=menu.source')
+                ->where('main_table.parent_source is null or main_table.parent_source=""')
+                ->order('menu.order', 'asc')
+                ->group('main_table.acl_id')
+                ->select()->fetch()
+                ->getItems();
             /**@var Acl $top_menu */
             foreach ($top_menus as &$top_menu) {
                 $top_menu = $this->getSubMenusByRole($top_menu, $role);
@@ -386,8 +384,8 @@ class Menu extends \Weline\Framework\Database\Model
      * @DateTime: 2023/1/31 23:25
      * 参数区：
      *
-     * @param Acl   $acl
-     * @param Role  $role
+     * @param Acl $acl
+     * @param Role $role
      * @param array $checked_menus
      *
      * @return Acl
@@ -438,7 +436,7 @@ class Menu extends \Weline\Framework\Database\Model
                 $parent->setData('sub_menu_by_role', array_merge($sub, $existSubAcls));
             } else {
                 $parent->setData('sub', $sub)
-                       ->setData('sub_menu_by_role', $sub);
+                    ->setData('sub_menu_by_role', $sub);
             }
             $checked_menus[$parent->getId()] = $parent;
             return $this->findTopMenu($parent, $role, $checked_menus);
@@ -462,10 +460,10 @@ class Menu extends \Weline\Framework\Database\Model
     public function getSubMenusByRole(Acl &$acl, Role &$role): Acl
     {
         $model = self::Acl()->clear()
-                     ->joinModel(RoleAccess::class, 'ra', 'main_table.source_id=ra.source_id', 'left')
-                     ->joinModel(Menu::class, 'menu', 'ra.source_id=menu.source', 'left')
-                     ->where('main_table.parent_source', $acl->getId(''))
-                     ->group('main_table.source_id');
+            ->joinModel(RoleAccess::class, 'ra', 'main_table.source_id=ra.source_id', 'left')
+            ->joinModel(Menu::class, 'menu', 'ra.source_id=menu.source', 'left')
+            ->where('main_table.parent_source', $acl->getId(''))
+            ->group('main_table.source_id');
         if ($role->getId() !== 1) {
             $model->where('ra.role_id', $role->getId(0));
         }
