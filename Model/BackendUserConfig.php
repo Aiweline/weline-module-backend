@@ -22,9 +22,8 @@ use Weline\Framework\Setup\Db\ModelSetup;
 
 class BackendUserConfig extends \Weline\Framework\Database\Model
 {
-    public const fields_ID = 'backend_user_id';
-    public const fields_backend_user_id = 'backend_user_id';
-    public const fields_user_id = 'backend_user_id';
+    public const fields_ID = 'user_id';
+    public const fields_user_id = 'user_id';
     public const fields_value = 'value';
     public const fields_key = 'key';
     public const fields_module = 'module';
