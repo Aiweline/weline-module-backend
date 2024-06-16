@@ -16,7 +16,7 @@ use Weline\Backend\Session\BackendSession;
 
 class ThemeConfig extends \Weline\Framework\View\Block
 {
-    public const        area                 = 'backend_';
+    public const        area = 'backend_';
     public const        theme_Session_Config = 'backend_theme_config';
     private BackendSession $userSession;
     private BackendUserConfig $userConfig;
@@ -25,7 +25,7 @@ class ThemeConfig extends \Weline\Framework\View\Block
     {
         parent::__construct($data);
         $this->userSession = $backendSession;
-        $this->userConfig  = $userConfig;
+        $this->userConfig = $userConfig;
     }
 
     public function __init()
@@ -79,14 +79,14 @@ class ThemeConfig extends \Weline\Framework\View\Block
         if (is_array($key)) {
             $this->userSession->setData(self::theme_Session_Config, $key);
             if ($this->userSession->isLogin()) {
-                $this->userConfig->addConfig(self::theme_Session_Config, $key)->save();
+                $this->userConfig->setConfig(self::theme_Session_Config, json_encode($key), 'Weline_Backend', '主题设置');
             }
         } else {
-            $theme_Config       = $this->getOriginThemeConfig();
+            $theme_Config = $this->getOriginThemeConfig();
             $theme_Config[$key] = $value;
             $this->userSession->setData(self::theme_Session_Config, $theme_Config);
             if ($this->userSession->isLogin()) {
-                $this->userConfig->addConfig(self::theme_Session_Config, $theme_Config)->save();
+                $this->userConfig->setConfig(self::theme_Session_Config, $theme_Config, 'Weline_Backend', '主题设置');
             }
         }
 

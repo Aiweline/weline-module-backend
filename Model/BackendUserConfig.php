@@ -29,8 +29,8 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
     public const fields_module = 'module';
     public const fields_name = 'name';
 
-    private $config = [];
-    private $defaul_tconfig = [];
+    private array $config = [];
+    private array $default_config = [];
 
     public array $_index_sort_keys = [self::fields_ID, self::fields_key, self::fields_name, self::fields_module];
     public array $_unit_primary_keys = [self::fields_ID, self::fields_key];
@@ -81,7 +81,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
      * @param bool $real
      * @return string
      */
-    public function getConfig(string $key, bool $real = false): string
+    public function getConfig(string $key, string $module = '', string $name = '', bool $real = false): string
     {
         if (CLI) {
             return $this->getDefaultConfig($key);
@@ -94,40 +94,44 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
                 ->find()
                 ->fetchOrigin()['value'] ?? '';
         }
-        if (isset($this->config[$key])) {
-            return $this->config[$key];
+        $self_config_key = self::key($key, $module, $name);
+        if (isset($this->config[$self_config_key])) {
+            return $this->config[$self_config_key];
         }
         # 读取用户全部配置
         /**@var BackendSession $userSession */
         $userSession = ObjectManager::getInstance(BackendSession::class);
-        $configs = $this->clear()
-            ->where(self::fields_user_id, $userSession->getLoginUserID())
-            ->select()
-            ->fetchOrigin();
-        foreach ($configs as $config) {
-            $this->config[$config['key']] = $config['value'];
+        $this->clear()
+            ->where(self::fields_user_id, $userSession->getLoginUserID());
+        if ($module) {
+            $this->where(self::fields_module, $module);
         }
-        return $this->config[$key] ?? '';
+        if ($name) {
+            $this->where(self::fields_name, $name);
+        }
+        $config = $this
+            ->find()
+            ->fetchOrigin();
+        $this->config[$self_config_key] = $config['value']??'';
+        return $this->config[$self_config_key];
     }
 
     public function getDefaultConfig(string $key): string
     {
-        if (isset($this->defaul_tconfig[$key])) {
-            return $this->defaul_tconfig[$key];
+        if (isset($this->default_config[$key])) {
+            return $this->default_config[$key];
         }
         # 读取默认配置
         try {
-            $configs = $this->clear()
+            $config = $this->clear()
                 ->where(self::fields_user_id, 0)
-                ->select()
+                ->find()
                 ->fetchOrigin();
         } catch (\Throwable $e) {
-            $configs = [];
+            $config = null;
         }
-        foreach ($configs as $config) {
-            $this->defaul_tconfig[$config['key']] = $config['value'];
-        }
-        return $this->defaul_tconfig[$key] ?? '';
+        $this->default_config[$key] = $config['value']??'';
+        return $this->default_config[$key];
     }
 
     /**
@@ -139,6 +143,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
      */
     public function setConfig(string $key, string $value, string $module, string $name, $check = true): bool
     {
+        $this->config[self::key($key, $module, $name)] = $value;
         if (CLI) {
             return $this->setDefaultConfig($key, $value, $module, $name);
         }
@@ -163,6 +168,12 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
             ->setData(self::fields_module, $module, true)
             ->setData(self::fields_name, $name, true)
             ->save(true);
+    }
+
+    private static function key(string $key, string $module = '', string $name = ''): string
+    {
+        $key = ($module ? $module . '::' : '') . ($name ? $name . '::' : '') . $key;
+        return $key;
     }
 
     /**
