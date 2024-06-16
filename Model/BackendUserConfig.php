@@ -14,6 +14,7 @@ namespace Weline\Backend\Model;
 use Weline\Backend\Session\BackendSession;
 use Weline\Framework\App\Env;
 use Weline\Framework\Database\AbstractModel;
+use Weline\Framework\Database\Api\Db\TableInterface;
 use Weline\Framework\Database\Db\Ddl\Table;
 use Weline\Framework\Manager\ObjectManager;
 use Weline\Framework\Setup\Data\Context;
@@ -21,17 +22,19 @@ use Weline\Framework\Setup\Db\ModelSetup;
 
 class BackendUserConfig extends \Weline\Framework\Database\Model
 {
-    public const fields_ID      = 'config_id';
-    public const fields_user_id = 'user_id';
-    public const fields_value   = 'value';
-    public const fields_key     = 'key';
-    public const fields_module  = 'module';
-    public const fields_name    = 'name';
+    public const fields_ID = 'backend_user_id';
+    public const fields_backend_user_id = 'backend_user_id';
+    public const fields_user_id = 'backend_user_id';
+    public const fields_value = 'value';
+    public const fields_key = 'key';
+    public const fields_module = 'module';
+    public const fields_name = 'name';
 
     private $config = [];
     private $defaul_tconfig = [];
 
-    public array $_index_sort_keys = [self::fields_ID, self::fields_key];
+    public array $_index_sort_keys = [self::fields_ID, self::fields_key, self::fields_name, self::fields_module];
+    public array $_unit_primary_keys = [self::fields_ID, self::fields_key];
 
     /**
      * @inheritDoc
@@ -58,16 +61,17 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
 //        $setup->dropTable();
         if (!$setup->tableExist()) {
             $setup->createTable()
-                ->addColumn(self::fields_ID, Table::column_type_INTEGER, null, 'PRIMARY KEY auto_increment', '配置ID')
-                ->addColumn(self::fields_user_id, Table::column_type_INTEGER, null, 'default 0', '管理员ID:0表示默认全局配置')
+                ->addColumn(self::fields_ID, Table::column_type_INTEGER, null, 'PRIMARY KEY auto_increment', '管理员ID')
                 ->addColumn(self::fields_key, Table::column_type_VARCHAR, 255, 'not null', '配置key')
                 ->addColumn(self::fields_value, Table::column_type_TEXT, 0, '', '配置信息')
                 ->addColumn(self::fields_module, Table::column_type_VARCHAR, 255, 'not null', '模组')
                 ->addColumn(self::fields_name, Table::column_type_VARCHAR, 255, 'not null', '配置名')
                 # 建立联合索引
                 ->addAdditional(
-                    'PRIMARY KEY (`' . self::fields_ID . '`,`' . self::fields_user_id . '`,`' . self::fields_key . '`) USING BTREE'
+                    'PRIMARY KEY (`' . self::fields_ID . '`,`' . self::fields_key . '`) USING BTREE'
                 )
+                ->addIndex(TableInterface::index_type_KEY, 'idx_module', self::fields_module, '模组索引')
+                ->addIndex(TableInterface::index_type_KEY, 'idx_name', self::fields_name, '配置名')
                 ->addAdditional('ENGINE=MyIsam;')
                 ->create();
         }
@@ -97,7 +101,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
         # 读取用户全部配置
         /**@var BackendSession $userSession */
         $userSession = ObjectManager::getInstance(BackendSession::class);
-        $configs     = $this->clear()
+        $configs = $this->clear()
             ->where(self::fields_user_id, $userSession->getLoginUserID())
             ->select()
             ->fetchOrigin();
