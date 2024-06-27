@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Weline\Backend\Controller\System;
 
-use Weline\CacheManager\Console\Cache\Clear;
+use Weline\Framework\Cache\Console\Cache\Clear;
 use Weline\Framework\Manager\ObjectManager;
 
 class Config extends \Weline\Framework\App\Controller\BackendController
