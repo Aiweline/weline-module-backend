@@ -101,8 +101,9 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
         # 读取用户全部配置
         /**@var BackendSession $userSession */
         $userSession = ObjectManager::getInstance(BackendSession::class);
-        $this->clear()
-            ->where(self::fields_user_id, $userSession->getLoginUserID());
+        $this->reset()
+            ->where(self::fields_user_id, $userSession->getLoginUserID())
+            ->where(self::fields_key, $key);
         if ($module) {
             $this->where(self::fields_module, $module);
         }
