@@ -44,7 +44,7 @@ class Create implements CommandInterface
         # 检查账户是否存在
         /**@var BackendUser $userModel */
         $userModel = ObjectManager::getInstance(BackendUser::class);
-        $user = $userModel->reset()
+        $user      = $userModel->reset()
             ->where('email', $formatArgs['email'], '=', 'or')
             ->where('username', $formatArgs['username'])
             ->find()
@@ -59,13 +59,21 @@ class Create implements CommandInterface
                 ->setEmail($formatArgs['email'])
                 ->setPassword($formatArgs['password'])
                 ->save();
-            if (!$userId) {
+            if(!$userId){
                 $printer->error(__('用户创建失败'));
                 return;
             }
             $printer->success(__('用户创建成功'));
-        } catch (\Exception $exception) {
+        }catch (\Exception $exception){
             $printer->error(__('用户创建失败：%s', $exception->getMessage()));
         }
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function tip(): string
+    {
+        return '创建后台用户。php bin/w user:create --username=demo --email=demo@aiweline.com --password=123456';
     }
 }
