@@ -55,7 +55,7 @@ class UpgradeMenu implements ObserverInterface
                     $menu[Menu::fields_LEVEL]         = 1;
                     $menu[Menu::fields_ACTION]        = trim($menu[Menu::fields_ACTION], '/');
                     # 如果动作路径有*号，替换为路由所指模块的路由
-                    list($module, $menu) = $this->replaceModuleAction($menu, $modules_info, $module);
+                    $menu = $this->replaceModuleAction($menu, $modules_info, $module);
                     # 先查询一遍
                     /**@var Menu $menuModel */
                     $this->menu->clear();
@@ -68,6 +68,11 @@ class UpgradeMenu implements ObserverInterface
                     unset($menus['data'][$key]);
                 }
             }
+//            if ($module == 'Weline_BackendActivity' || $module == 'Weline_Admin') {
+//                $d[] = $menus;
+//            }else{
+//                unset($modules_xml_menus[$module]);
+//            }
         }
         # 子菜单
         foreach ($modules_xml_menus as $module => $sub_menus) {
@@ -77,7 +82,7 @@ class UpgradeMenu implements ObserverInterface
                 $menu[Menu::fields_MODULE]        = $module;
                 $menu[Menu::fields_PARENT_SOURCE] = $menu['parent'] ?? '';
                 $menu[Menu::fields_ACTION]        = trim($menu[Menu::fields_ACTION], '/');
-                list($module, $menu) = $this->replaceModuleAction($menu, $modules_info, $module);
+                $menu = $this->replaceModuleAction($menu, $modules_info);
                 unset($menu['parent']);
                 # 1 存在父资源 检查父资源的 ID
                 $parent = clone $this->menu->where(Menu::fields_SOURCE, $menu[Menu::fields_PARENT_SOURCE])->find()->fetch();
@@ -169,12 +174,12 @@ class UpgradeMenu implements ObserverInterface
      * @return array
      * @throws \Exception
      */
-    private function replaceModuleAction(mixed $menu, array &$modules_info, mixed $module): array
+    private function replaceModuleAction(array &$menu, array &$modules_info): array
     {
         if (strpos($menu[Menu::fields_ACTION], '*') !== false) {
             $module_info = $modules_info[$menu['module']] ?? [];
             if (empty($module_info)) {
-                $module_info                        = Env::getInstance()->getModuleInfo($menu['module']);
+                $module_info                   = Env::getInstance()->getModuleInfo($menu['module']);
                 $modules_info[$menu['module']] = $module_info;
                 if (empty($module_info)) {
                     throw new \Exception(__('模块不存在：%1', $module_info['name']));
@@ -182,6 +187,6 @@ class UpgradeMenu implements ObserverInterface
             }
             $menu[Menu::fields_ACTION] = str_replace('*', $module_info['router'], $menu[Menu::fields_ACTION]);
         }
-        return array($module, $menu);
+        return $menu;
     }
 }
