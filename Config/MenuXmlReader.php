@@ -35,6 +35,7 @@ class MenuXmlReader extends XmlReader
         // 菜单提取
         $module_menus = [];
         $has_orders   = [];
+        $data = [];
         foreach ($configs as $module_and_file => $config) {
             $m_a_f_arr                     = explode('::', $module_and_file);
             $module                        = array_shift($m_a_f_arr);
@@ -147,8 +148,14 @@ class MenuXmlReader extends XmlReader
             $data = $module_menu['data'];
             if ($data) {
                 $orders = array_column($data, 'order');
-                array_multisort($orders, SORT_ASC, $data);
-                $module_menu['data'] = $data;
+                array_multisort($orders, SORT_ASC);
+                foreach ($orders as $order) {
+                    foreach ($data as $k => $v) {
+                        if ($v['order'] == $order) {
+                            $module_menu['data'][$k] = $v;
+                        }
+                    }
+                }
             }
         }
         return $module_menus;
