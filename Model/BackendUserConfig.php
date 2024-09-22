@@ -60,13 +60,13 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
 //        $setup->dropTable();
         if (!$setup->tableExist()) {
             $setup->createTable()
-                ->addColumn(self::fields_ID, Table::column_type_INTEGER, null, 'PRIMARY KEY auto_increment', '管理员ID')
-                ->addColumn(self::fields_key, Table::column_type_VARCHAR, 255, 'not null', '配置key')
-                ->addColumn(self::fields_value, Table::column_type_TEXT, 0, '', '配置信息')
-                ->addColumn(self::fields_module, Table::column_type_VARCHAR, 255, 'not null', '模组')
-                ->addColumn(self::fields_name, Table::column_type_VARCHAR, 255, 'not null', '配置名')
+                ->addColumn(self::fields_ID, TableInterface::column_type_INTEGER, null, 'not null', '管理员ID')
+                ->addColumn(self::fields_key, TableInterface::column_type_VARCHAR, 255, 'not null', '配置key')
+                ->addColumn(self::fields_value, TableInterface::column_type_TEXT, 0, '', '配置信息')
+                ->addColumn(self::fields_module, TableInterface::column_type_VARCHAR, 255, 'not null', '模组')
+                ->addColumn(self::fields_name, TableInterface::column_type_VARCHAR, 255, 'not null', '配置名')
                 # 建立联合索引
-                ->addAdditional(
+                ->addConstraints(
                     'PRIMARY KEY (`' . self::fields_ID . '`,`' . self::fields_key . '`) USING BTREE'
                 )
                 ->addIndex(TableInterface::index_type_KEY, 'idx_module', self::fields_module, '模组索引')

@@ -3,6 +3,7 @@
 namespace Weline\Backend\Model;
 
 use Weline\Backend\Session\BackendSession;
+use Weline\Framework\Database\Api\Db\Ddl\TableInterface;
 use Weline\Framework\Database\Model;
 use Weline\Framework\Manager\ObjectManager;
 use Weline\Framework\Setup\Data\Context;
@@ -42,21 +43,21 @@ class BackendUserData extends Model
             $setup->createTable()
                 ->addColumn(
                     self::fields_ID,
-                    'INT',
+                    TableInterface::column_type_INTEGER,
                     0,
                     'primary key auto_increment',
                     '后台用户数据ID'
                 )
                 ->addColumn(
                     self::fields_BACKEND_USER_ID,
-                    'INT',
+                    TableInterface::column_type_INTEGER,
                     0,
                     'not null',
                     '后台用户ID'
                 )
                 ->addColumn(
                     self::fields_scope,
-                    'VARCHAR',
+                    TableInterface::column_type_VARCHAR,
                     255,
                     'not null',
                     '作用域'
