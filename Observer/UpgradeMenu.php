@@ -146,7 +146,7 @@ class UpgradeMenu implements ObserverInterface
                 Acl::fields_DOCUMENT => $menu['is_system'] ? __('系统菜单') : __('用户菜单'),
                 Acl::fields_REWRITE => '',
                 Acl::fields_ICON => $menu['icon'],
-                Acl::fields_IS_ENBAVLE => $menu['is_enable'],
+                Acl::fields_IS_ENABLE => $menu['is_enable'],
                 Acl::fields_IS_BACKEND => $menu['is_backend'],
             ];
         }
@@ -154,9 +154,7 @@ class UpgradeMenu implements ObserverInterface
         if ($acl_items) {
             /**@var \Weline\Acl\Model\Acl $alcModel */
             $alcModel = ObjectManager::getInstance(Acl::class);
-            $alcModel->insert(
-                $acl_items,
-                $alcModel->getModelFields())
+            $alcModel->insert($acl_items)
                 ->fetch();
         }
     }
