@@ -48,7 +48,7 @@ class Create implements CommandInterface
             ->where('email', $formatArgs['email'], '=', 'or')
             ->where('username', $formatArgs['username'])
             ->find()
-            ->fetchOrigin();
+            ->fetchArray();
         if ($user) {
             $printer->error(__('用户已存在'));
             return;

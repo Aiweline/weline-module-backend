@@ -92,7 +92,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
             return $this->clear()->where(self::fields_user_id, $userSession->getLoginUserID())
                 ->where(self::fields_key, $key)
                 ->find()
-                ->fetchOrigin()['value'] ?? '';
+                ->fetchArray()['value'] ?? '';
         }
         $self_config_key = self::key($key, $module, $name);
         if (isset($this->config[$self_config_key])) {
@@ -112,8 +112,8 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
         }
         $config = $this
             ->find()
-            ->fetchOrigin();
-        $this->config[$self_config_key] = $config['value']??'';
+            ->fetchArray();
+        $this->config[$self_config_key] = $config['value'] ?? '';
         return $this->config[$self_config_key];
     }
 
@@ -127,11 +127,11 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
             $config = $this->clear()
                 ->where(self::fields_user_id, 0)
                 ->find()
-                ->fetchOrigin();
+                ->fetchArray();
         } catch (\Throwable $e) {
             $config = null;
         }
-        $this->default_config[$key] = $config['value']??'';
+        $this->default_config[$key] = $config['value'] ?? '';
         return $this->default_config[$key];
     }
 
@@ -207,7 +207,7 @@ class BackendUserConfig extends \Weline\Framework\Database\Model
             ->save(true);
     }
 
-    public function save(array|bool|AbstractModel $data = [], string|array $sequence = null): bool|int
+    public function save(array|bool|AbstractModel $data = [], string|array $sequence = ''): bool|int
     {
         $this->forceCheck();
         return parent::save($data, $sequence);

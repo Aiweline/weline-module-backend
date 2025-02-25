@@ -93,11 +93,18 @@ class BackendUserData extends Model
         return json_decode($json, true);
     }
 
-    function deleteScope(int $user_id, string $scope): BackendUserData
+    function deleteScope(string $scope): BackendUserData
     {
-        $this->where(self::fields_BACKEND_USER_ID, $user_id)
-            ->where(self::fields_scope, $scope)
-            ->delete();
+        /**
+         * @var BackendSession $session
+         */
+        $session = ObjectManager::getInstance(BackendSession::class);
+        if ($user_id = $session->getLoginUserID()) {
+            $this->where(self::fields_BACKEND_USER_ID, $user_id)
+                ->where(self::fields_scope, $scope)
+                ->delete()
+                ->fetch();
+        }
         return $this;
     }
 }

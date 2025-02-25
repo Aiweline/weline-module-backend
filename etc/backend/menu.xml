@@ -20,6 +20,9 @@
     <add source="Weline_Backend::user_config" name="system_configuration" title="用户配置" action=""
          parent="Weline_Backend::system_configuration"
          icon="dripicons-gear" order="80001"/>
+    <add source="Weline_Backend::user_config" name="system_configuration" title="后台配置" action=""
+         parent="Weline_Backend::system_configuration"
+         icon="dripicons-gear" order="80001"/>
 
     <!--顶层：开发配置-->
     <add source="Weline_Backend::system_dev_configuration" name="system_dev_configuration" title="开发配置" action=""
