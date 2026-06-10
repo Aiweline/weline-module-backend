@@ -20,6 +20,7 @@ use Weline\Framework\Output\Cli\Printing;
 class Create implements CommandInterface
 {
 
+
     /**
      * @inheritDoc
      */
@@ -27,17 +28,20 @@ class Create implements CommandInterface
     {
         $formatArgs = $args['format'] ?? [];
         array_shift($formatArgs);
+        $username = $formatArgs['username'] ?? $args['username'] ?? '';
+        $email = $formatArgs['email'] ?? $args['email'] ?? '';
+        $password = $formatArgs['password'] ?? $args['password'] ?? '';
         /**@var Printing $printer */
         $printer = ObjectManager::getInstance(Printing::class);
-        if (empty($formatArgs['username'])) {
+        if ($username === '' && $username !== '0') {
             $printer->error(__('用户名不能为空'));
             return;
         }
-        if (empty($formatArgs['email'])) {
+        if ($email === '' && $email !== '0') {
             $printer->error(__('邮箱不能为空'));
             return;
         }
-        if (empty($formatArgs['password'])) {
+        if ($password === '' && $password !== '0') {
             $printer->error(__('密码不能为空'));
             return;
         }
@@ -45,8 +49,8 @@ class Create implements CommandInterface
         /**@var BackendUser $userModel */
         $userModel = ObjectManager::getInstance(BackendUser::class);
         $user      = $userModel->reset()
-            ->where('email', $formatArgs['email'], '=', 'or')
-            ->where('username', $formatArgs['username'])
+            ->where('email', $email, '=', 'or')
+            ->where('username', $username)
             ->find()
             ->fetchArray();
         if ($user) {
@@ -55,9 +59,9 @@ class Create implements CommandInterface
         }
         try {
             $userId = $userModel->reset()
-                ->setUsername($formatArgs['username'])
-                ->setEmail($formatArgs['email'])
-                ->setPassword($formatArgs['password'])
+                ->setUsername($username)
+                ->setEmail($email)
+                ->setPassword($password)
                 ->save();
             if(!$userId){
                 $printer->error(__('用户创建失败'));
@@ -75,5 +79,19 @@ class Create implements CommandInterface
     public function tip(): string
     {
         return '创建后台用户。php bin/w user:create --username=demo --email=demo@aiweline.com --password=123456';
+    }
+
+    public function help(): array|string
+    {
+        // 基于tip的默认help实现
+        return \Weline\Framework\Console\CommandHelper::formatHelp(
+            '',
+            $this->tip(),
+            [
+                '-h, --help' => '显示帮助信息',
+            ],
+            [],
+            []
+        );
     }
 }

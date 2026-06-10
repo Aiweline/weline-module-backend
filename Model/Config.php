@@ -3,62 +3,45 @@
 declare(strict_types=1);
 
 /*
- * 本文件由 秋枫雁飞 编写，所有解释权归Aiweline所有。
- * 邮箱：aiweline@qq.com
- * 网址：aiweline.com
- * 论坛：https://bbs.aiweline.com
+ * 鏈枃浠剁敱 绉嬫灚闆侀 缂栧啓锛屾墍鏈夎В閲婃潈褰扐iweline鎵€鏈夈€?
+ * 閭锛歛iweline@qq.com
+ * 缃戝潃锛歛iweline.com
+ * 璁哄潧锛歨ttps://bbs.aiweline.com
  */
 
 namespace Weline\Backend\Model;
 
-use Weline\SystemConfig\Model\SystemConfig;
-
 class Config
 {
-    public SystemConfig $systemConfig;
+    private const AREA_BACKEND = 'backend';
 
-    public function __construct(
-        SystemConfig $systemConfig
-    )
-    {
-        $this->systemConfig = $systemConfig;
-    }
-
-    /**
-     * @DESC          # 【后端】读取配置
-     *
-     * @AUTH    秋枫雁飞
-     * @EMAIL aiweline@qq.com
-     * @DateTime: 2021/9/14 22:18
-     * 参数区：
-     *
-     * @param string $key
-     * @param string $module
-     *
-     * @return mixed
-     */
     public function getConfig(string $key, string $module): mixed
     {
-        return $this->systemConfig->getConfig($key, $module, SystemConfig::area_BACKEND);
+        return w_query('system_config', 'getConfig', [
+            'key' => $key,
+            'module' => $module,
+            'area' => self::AREA_BACKEND,
+        ]);
     }
 
     /**
-     * @DESC          # 【后端】设置配置
-     *
-     * @AUTH    秋枫雁飞
-     * @EMAIL aiweline@qq.com
-     * @DateTime: 2021/9/14 22:19
-     * 参数区：
-     *
-     * @param string $key
-     * @param string $value
-     * @param string $module
-     *
-     * @return bool
-     * @throws \Weline\Framework\App\Exception
+     * @return array<string, mixed>
      */
+    public function getConfigs(string $module): array
+    {
+        return (array) w_query('system_config', 'getConfigs', [
+            'module' => $module,
+            'area' => self::AREA_BACKEND,
+        ]);
+    }
+
     public function setConfig(string $key, string $value, string $module): bool
     {
-        return $this->systemConfig->setConfig($key, $value, $module, SystemConfig::area_BACKEND);
+        return (bool) w_query('system_config', 'setConfig', [
+            'key' => $key,
+            'value' => $value,
+            'module' => $module,
+            'area' => self::AREA_BACKEND,
+        ]);
     }
 }
