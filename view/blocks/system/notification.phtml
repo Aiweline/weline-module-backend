@@ -34,10 +34,10 @@ $unreadCount = $block->getUnreadCount();
                 </div>
                 <div class="col-auto">
                     <?php if ($unreadCount > 0): ?>
-                    <a href="javascript:void(0)" class="small weline-notification-mark-all" 
-                       onclick="WelineNotification.markAllRead()">
+                    <button type="button" class="small weline-notification-mark-all"
+                            data-notification-action="mark-all-read">
                         <?= __('全部已读') ?>
-                    </a>
+                    </button>
                     <?php endif; ?>
                 </div>
             </div>
@@ -413,6 +413,7 @@ $unreadCount = $block->getUnreadCount();
 }
 
 .weline-notification-mark-all {
+    border: 0;
     padding: 4px 10px;
     font-size: 0.75rem;
     font-weight: 500;
@@ -421,6 +422,7 @@ $unreadCount = $block->getUnreadCount();
     border-radius: var(--backend-border-radius-sm, 4px);
     text-decoration: none;
     transition: all 0.2s ease;
+    cursor: pointer;
 }
 
 .weline-notification-mark-all:hover {
@@ -429,15 +431,44 @@ $unreadCount = $block->getUnreadCount();
 }
 </style>
 
+
+<script>
+(function(g){
+  if(g.__bqAdmin_backend_admin) return;
+  g.__bqAdmin_backend_admin=true;
+  g.bqAdmin=g.bqAdmin||{};
+  g.bqAdmin['backend_admin']=function(url, options){
+    options=options||{};
+    var body=options.body;
+    if(body && typeof FormData!=='undefined' && body instanceof FormData){
+      var p=new URLSearchParams(); body.forEach(function(v,k){ if(!(typeof File!=='undefined'&&v instanceof File)) p.append(k,String(v)); }); body=p.toString();
+    } else if(body && typeof body!=='string'){ try{ body=JSON.stringify(body); }catch(e){ body=''; } }
+    var run=function(api){ return api.resource('backend_admin').adminRequest({url:url, method:options.method||'POST', headers:options.headers||{}, body:body||''}); };
+    var toResp=function(data){
+      var _biz=g.WelineApiBusiness||(g.Weline&&g.Weline.ApiBusiness);
+      if(_biz&&typeof _biz.wrapAdminBridgeResult==='function'){
+        return _biz.wrapAdminBridgeResult(data);
+      }
+      var body=(data&&typeof data==='object'&&!Array.isArray(data))?data:{success:true,data:data};
+      var ok=!(body&&body.success===false);
+      var resp={ok:ok,status:ok?200:400,json:function(){return Promise.resolve(body);},text:function(){return Promise.resolve(typeof body==='string'?body:JSON.stringify(body==null?{}:body));}};
+      Object.keys(body).forEach(function(k){ if(k==='ok'||k==='json'||k==='text'||k==='status') return; resp[k]=body[k]; });
+      return resp;
+    };
+    var p=(g.Weline&&g.Weline.load)?g.Weline.load('api').then(run):Promise.resolve(run(g.Weline.Api));
+    return p.then(toResp);
+  };
+})(window);
+</script>
 <script>
 (function() {
     'use strict';
 
     var WelineNotification = {
         markAllRead: function() {
-            window.Weline.Api.request('<?= $this->getBackendUrl('system/backend/notification/markAllRead') ?>', { method: 'POST' })
+            bqAdmin['backend_admin']('<?= $this->getBackendUrl('system/backend/notification/markAllRead') ?>', { method: 'POST' })
             .then(function(response) {
-                var data = response.data;
+                var data = (function(r){ var b=window.WelineApiBusiness||(window.Weline&&window.Weline.ApiBusiness); return (b&&typeof b.unwrapBusiness==='function')?b.unwrapBusiness(r):r.data; })(response);
                 if (response.ok && data && data.success) {
                     BackendToast.success(data.message || '<?= __('已标记全部已读') ?>');
                     setTimeout(function() { window.location.reload(); }, 500);
@@ -462,5 +493,15 @@ $unreadCount = $block->getUnreadCount();
     };
 
     window.WelineNotification = WelineNotification;
+
+    document.addEventListener('click', function(event) {
+        var trigger = event.target.closest('[data-notification-action="mark-all-read"]');
+        if (!trigger) {
+            return;
+        }
+
+        event.preventDefault();
+        WelineNotification.markAllRead();
+    });
 })();
 </script>

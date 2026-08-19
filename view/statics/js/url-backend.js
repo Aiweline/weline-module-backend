@@ -187,6 +187,32 @@
         return path;
     }
 
+    function urlPathHasSegment(url, segment) {
+        if (!url || !segment) {
+            return false;
+        }
+        try {
+            return new URL(url, window.location.origin).pathname
+                .split('/')
+                .filter(Boolean)
+                .some((part) => part.toLowerCase() === String(segment).toLowerCase());
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function buildAreaApiPath(baseUrl, area, normalizedPath) {
+        const cleanArea = String(area || '').replace(/^\/+|\/+$/g, '');
+        if (!cleanArea) {
+            return normalizedPath;
+        }
+        const firstSegment = normalizedPath.split('/').filter(Boolean)[0] || '';
+        if (urlPathHasSegment(baseUrl, cleanArea) || firstSegment.toLowerCase() === cleanArea.toLowerCase()) {
+            return normalizedPath;
+        }
+        return cleanArea + '/' + normalizedPath;
+    }
+
     function app_path(path) {
         const originPath = path;
         if (!window.site) {
@@ -371,17 +397,28 @@
             }
         }
 
-        const rawTargetCurrency = options.currency || currentCurrency || getCookie('WELINE_USER_CURRENCY') || config.currentCurrency || config.defaultCurrency || 'CNY';
-        const targetCurrency = isSupportedCurrencyCode(rawTargetCurrency, config) ? normalizeCurrencyCode(rawTargetCurrency) : '';
-        const targetLang = options.lang || currentLang || getCookie('WELINE_USER_LANG') || config.currentLang || 'zh_Hans_CN';
+        const rawTargetCurrency = Object.prototype.hasOwnProperty.call(options, 'currency')
+            ? options.currency
+            : currentCurrency;
+        const targetCurrency = isSupportedCurrencyCode(rawTargetCurrency, config)
+            ? normalizeCurrencyCode(rawTargetCurrency)
+            : '';
+        // Currency/language switches are independent: never invent the other axis
+        // from cookie/config. Only keep what is already in the path (or explicitly set).
+        const targetLang = Object.prototype.hasOwnProperty.call(options, 'lang')
+            ? String(options.lang || '')
+            : currentLang;
 
+        const defaultCurrency = normalizeCurrencyCode(config.defaultCurrency || 'CNY');
         const out = [];
         if (prefix) {
             out.push(prefix);
         }
-        if (targetCurrency) {
+        // Default currency omitted; non-default kept / set by currency switcher.
+        if (targetCurrency && targetCurrency !== defaultCurrency) {
             out.push(targetCurrency);
         }
+        // Backend keeps locale when present (including default) for path routing.
         if (targetLang) {
             out.push(targetLang);
         }
@@ -432,7 +469,7 @@
     window.api = function (path, params = {}) {
         if (!path) return '';
         const normalizedPath = normalizePath(path, config.baseRouter);
-        const apiPath = config.apiAdminArea ? config.apiAdminArea + '/' + normalizedPath : normalizedPath;
+        const apiPath = buildAreaApiPath(config.apiHost, config.apiAdminArea, normalizedPath);
         return buildUrlWithParams(config.apiHost, apiPath, params);
     };
 
@@ -441,7 +478,7 @@
     window.frontend_api = function (path, params = {}) {
         if (!path) return '';
         const normalizedPath = normalizePath(path, config.baseRouter);
-        const apiPath = config.apiArea ? config.apiArea + '/' + normalizedPath : 'api/' + normalizedPath;
+        const apiPath = buildAreaApiPath(config.frontendApiHost, config.apiArea || 'api', normalizedPath);
         return buildUrlWithParams(config.frontendApiHost, apiPath, params);
     };
 

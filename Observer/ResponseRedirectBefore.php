@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Weline\Backend\Observer;
 
-use Weline\Admin\Service\BackendLoginReturnUrlService;
+use Weline\Backend\Api\Routing\LoginReturnUrlProviderInterface;
 use Weline\Framework\Session\Auth\AuthenticatedSessionInterface;
 use Weline\Framework\Session\SessionFactory;
 use Weline\Framework\DataObject\DataObject;
@@ -19,6 +19,7 @@ use Weline\Framework\Event\Event;
 use Weline\Framework\Event\ObserverInterface;
 use Weline\Framework\Http\Request;
 use Weline\Framework\Manager\ObjectManager;
+use Weline\Framework\Runtime\RuntimeProviderResolver;
 use Weline\Framework\Session\Session;
 use Weline\Framework\Session\Strategy\WlsStrategy;
 
@@ -28,12 +29,14 @@ class ResponseRedirectBefore implements ObserverInterface
      * @var Request
      */
     protected Request $request;
-    private ?BackendLoginReturnUrlService $returnUrlService;
+    private ?LoginReturnUrlProviderInterface $returnUrlService = null;
+    private bool $returnUrlServiceResolved = false;
 
-    public function __construct(Request $request, ?BackendLoginReturnUrlService $returnUrlService = null)
-    {
+    public function __construct(
+        Request $request,
+        private readonly RuntimeProviderResolver $runtimeProviderResolver,
+    ) {
         $this->request = $request;
-        $this->returnUrlService = $returnUrlService;
     }
 
     /**
@@ -80,18 +83,13 @@ class ResponseRedirectBefore implements ObserverInterface
         try {
             $path = $this->request->getRouteUrlPath($url);
             
-            // 只处理GET请求
-            if (!$this->request->isGet()) {
+            // 只处理浏览器页面导航请求，避免 AJAX/API 请求污染登录后的回跳地址。
+            if (!$this->request->isDocumentNavigationRequest()) {
                 return;
             }
             
             // 只处理登录页面的302重定向
             if ($path !== 'admin/login' || $code !== 302) {
-                return;
-            }
-            
-            // 跳过AJAX和iframe请求
-            if ($this->request->isAjax() || $this->request->isIframe()) {
                 return;
             }
             
@@ -102,7 +100,13 @@ class ResponseRedirectBefore implements ObserverInterface
             // 检查当前路径是否在白名单中
             $currentPath = trim($this->request->getRouteUrlPath(), '/');
             if (!in_array($currentPath, $whiteUrls)) {
-                $refererUrl = $this->getReturnUrlService()->normalizeCandidateUrl($this->getCurrentRequestUrl());
+                $returnUrlService = $this->getReturnUrlService();
+                if (!$returnUrlService instanceof LoginReturnUrlProviderInterface
+                    || !$returnUrlService->shouldCaptureCurrentRequestReturnUrl($this->request, $this->getCurrentRequestUrl())
+                ) {
+                    return;
+                }
+                $refererUrl = $returnUrlService->normalizeCandidateUrl($this->getCurrentRequestUrl());
                 if ($refererUrl === null) {
                     return;
                 }
@@ -144,8 +148,11 @@ class ResponseRedirectBefore implements ObserverInterface
             if (!$backendSession->isLoggedIn()) {
                 // 诊断：是否带 Session Cookie（便于排查 WLS 下登录后仍跳回登录页）
                 $sessId = (string) (\w_env_cookie(WlsStrategy::SESSION_NAME) ?? '');
-                $hint = $sessId !== '' ? \substr($sessId, 0, 8) . '...' : 'none';
-                w_log_warning('[Backend] Redirect to login: cookie_sid=' . $hint . ' (session empty or not logged in)', [], 'session');
+                w_log_warning(
+                    '[Backend] Redirect to login: session empty or not logged in.',
+                    ['cookie_present' => $sessId !== ''],
+                    'session',
+                );
                 // 未登录用户重定向到登录页（同源 URL，避免 admin ↔ login 循环重定向）
                 $loginUrl = $this->withBackendLoginReturnUrl($this->getBackendLoginUrlSameOrigin());
                 $data->setData('url', $loginUrl);
@@ -312,7 +319,7 @@ class ResponseRedirectBefore implements ObserverInterface
     }
 
     /**
-     * 使用当前请求的 scheme+host 及后台路由前缀生成登录 URL（如 .../admin_xxx/CNY/zh_Hans_CN/admin/login）。
+     * 使用当前请求的 scheme+host 及后台路由前缀生成登录 URL。
      */
     protected function getBackendLoginUrlSameOrigin(): string
     {
@@ -324,12 +331,18 @@ class ResponseRedirectBefore implements ObserverInterface
 
     private function withBackendLoginReturnUrl(string $loginUrl): string
     {
-        if (!$this->request->isGet() || $this->request->isAjax() || $this->request->isIframe()) {
+        if (!$this->request->isDocumentNavigationRequest()) {
             return $loginUrl;
         }
 
         $currentRequestUrl = $this->getCurrentRequestUrl();
         if ($currentRequestUrl === '') {
+            return $loginUrl;
+        }
+        $returnUrlService = $this->getReturnUrlService();
+        if (!$returnUrlService instanceof LoginReturnUrlProviderInterface
+            || !$returnUrlService->shouldCaptureCurrentRequestReturnUrl($this->request, $currentRequestUrl)
+        ) {
             return $loginUrl;
         }
 
@@ -342,13 +355,15 @@ class ResponseRedirectBefore implements ObserverInterface
             return $loginUrl;
         }
 
-        return $this->getReturnUrlService()->buildLoginUrlWithReturn($loginUrl, $currentRequestUrl, 'not_logged_in');
+        return $returnUrlService->buildLoginUrlWithReturn($loginUrl, $currentRequestUrl, 'not_logged_in');
     }
 
-    private function getReturnUrlService(): BackendLoginReturnUrlService
+    private function getReturnUrlService(): ?LoginReturnUrlProviderInterface
     {
-        if (!$this->returnUrlService instanceof BackendLoginReturnUrlService) {
-            $this->returnUrlService = ObjectManager::getInstance(BackendLoginReturnUrlService::class);
+        if (!$this->returnUrlServiceResolved) {
+            $this->returnUrlServiceResolved = true;
+            $provider = $this->runtimeProviderResolver->resolve(LoginReturnUrlProviderInterface::class);
+            $this->returnUrlService = $provider instanceof LoginReturnUrlProviderInterface ? $provider : null;
         }
 
         return $this->returnUrlService;
@@ -378,9 +393,7 @@ class ResponseRedirectBefore implements ObserverInterface
             return '/' . \trim($areaRoute, '/') . '/' . \ltrim($path, '/');
         }
         if ($backendPrefix !== null && $backendPrefix !== '') {
-            $currency = (string) (\w_env('user.currency', 'CNY') ?? 'CNY');
-            $language = (string) (\w_env('user.lang', 'zh_Hans_CN') ?? 'zh_Hans_CN');
-            return '/' . $backendPrefix . '/' . $currency . '/' . $language . '/' . \ltrim($path, '/');
+            return '/' . \trim($backendPrefix, '/') . '/' . \ltrim($path, '/');
         }
         return $this->request->getUrlBuilder()->getBackendUrlPath($path);
     }

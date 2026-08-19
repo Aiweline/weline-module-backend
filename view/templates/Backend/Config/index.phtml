@@ -9,6 +9,9 @@
  * @var array $configs
  */
 $configs = $configs ?? [];
+$usesDefaultLogo = trim((string)($configs['logo_dark'] ?? '')) === ''
+    && trim((string)($configs['logo_light'] ?? '')) === ''
+    && trim((string)($configs['logo_sm'] ?? '')) === '';
 ?>
 <!-- 页面标题 -->
 <div class="row">
@@ -32,9 +35,22 @@ $configs = $configs ?? [];
         <div class="card">
             <div class="card-body">
                 <h4 class="card-title mb-4"><lang>外观与 Logo</lang></h4>
-                <p class="text-muted mb-4"><lang>配置后台 Logo（深色/浅色/小图）及站点名称、描述，将显示在顶部栏等位置。</lang></p>
+                <p class="text-muted mb-4"><lang>配置全站 Logo 与站点图标：未填写 Logo 时默认使用与登录页一致的 W 字母黄色丝带标识；填写后前后台顶栏、登录页与浏览器标签页将统一使用此处配置。</lang></p>
+                <?php if ($usesDefaultLogo): ?>
+                    <div class="alert alert-light border d-flex align-items-center gap-3 mb-4" role="status">
+                        <img src="/Weline/Theme/view/theme/backend/assets/images/theme/logo.png"
+                             alt="<?= __('默认 Weline Logo') ?>"
+                             width="96"
+                             height="75"
+                             style="object-fit: contain;">
+                        <div>
+                            <strong class="d-block"><lang>当前使用默认 Logo</lang></strong>
+                            <span class="text-muted"><lang>未配置自定义 Logo，后台顶栏与登录页使用同一个 W 字母黄色丝带标识。</lang></span>
+                        </div>
+                    </div>
+                <?php endif; ?>
                 
-                <form id="configForm" onsubmit="saveConfig(event)">
+                <w:form id="configForm">
                     <!-- Logo配置 -->
                     <div class="mb-4">
                         <h5 class="mb-3"><lang>Logo配置</lang></h5>
@@ -103,6 +119,28 @@ $configs = $configs ?? [];
                                     </small>
                                 </div>
                             </div>
+
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label"><lang>站点图标（Favicon）</lang></label>
+                                    <input type="hidden" class="form-control" id="site_icon" name="config[site_icon]"
+                                           value="{{configs.site_icon}}">
+                                    <file-manager target='#site_icon'
+                                                  title='@lang(选择站点图标)'
+                                                  vars='configs'
+                                                  preview="1"
+                                                  path='backend/icon/'
+                                                  value='configs.site_icon'
+                                                  multi='0'
+                                                  ext="jpg,jpeg,png,gif,webp,svg,ico"
+                                                  size="1024000"
+                                                  w='128'
+                                                  h='128'/>
+                                    <small class="form-text text-muted">
+                                        <lang>前后台浏览器标签页图标；留空则使用 Theme 默认 icon（与 Logo 同源）。</lang>
+                                    </small>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -168,16 +206,45 @@ $configs = $configs ?? [];
                         <button type="submit" class="btn btn-primary">
                             <i class="mdi mdi-content-save me-2"></i><lang>保存配置</lang>
                         </button>
-                        <button type="button" class="btn btn-secondary ms-2" onclick="resetForm()">
+                        <button type="button" class="btn btn-secondary ms-2" data-config-action="reset">
                             <i class="mdi mdi-refresh me-2"></i><lang>重置</lang>
                         </button>
                     </div>
-                </form>
+                </w:form>
             </div>
         </div>
     </div>
 </div>
 
+
+<script>
+(function(g){
+  if(g.__bqAdmin_backend_admin) return;
+  g.__bqAdmin_backend_admin=true;
+  g.bqAdmin=g.bqAdmin||{};
+  g.bqAdmin['backend_admin']=function(url, options){
+    options=options||{};
+    var body=options.body;
+    if(body && typeof FormData!=='undefined' && body instanceof FormData){
+      var p=new URLSearchParams(); body.forEach(function(v,k){ if(!(typeof File!=='undefined'&&v instanceof File)) p.append(k,String(v)); }); body=p.toString();
+    } else if(body && typeof body!=='string'){ try{ body=JSON.stringify(body); }catch(e){ body=''; } }
+    var run=function(api){ return api.resource('backend_admin').adminRequest({url:url, method:options.method||'POST', headers:options.headers||{}, body:body||''}); };
+    var toResp=function(data){
+      var _biz=g.WelineApiBusiness||(g.Weline&&g.Weline.ApiBusiness);
+      if(_biz&&typeof _biz.wrapAdminBridgeResult==='function'){
+        return _biz.wrapAdminBridgeResult(data);
+      }
+      var body=(data&&typeof data==='object'&&!Array.isArray(data))?data:{success:true,data:data};
+      var ok=!(body&&body.success===false);
+      var resp={ok:ok,status:ok?200:400,json:function(){return Promise.resolve(body);},text:function(){return Promise.resolve(typeof body==='string'?body:JSON.stringify(body==null?{}:body));}};
+      Object.keys(body).forEach(function(k){ if(k==='ok'||k==='json'||k==='text'||k==='status') return; resp[k]=body[k]; });
+      return resp;
+    };
+    var p=(g.Weline&&g.Weline.load)?g.Weline.load('api').then(run):Promise.resolve(run(g.Weline.Api));
+    return p.then(toResp);
+  };
+})(window);
+</script>
 <script>
 (function() {
     'use strict';
@@ -199,7 +266,7 @@ $configs = $configs ?? [];
         
         var url = '<?= $this->getBackendUrl('*/backend/config/save') ?>';
         var opts = { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(data).toString() };
-        window.Weline.Api.request(url, opts)
+        bqAdmin['backend_admin'](url, opts)
         .then(function(res) {
             var data = (res && res.data) !== undefined ? res.data : res;
             if (data.success) {
@@ -224,5 +291,20 @@ $configs = $configs ?? [];
             }
         });
     };
+
+    var configForm = document.getElementById('configForm');
+    if (configForm) {
+        configForm.addEventListener('submit', window.saveConfig);
+    }
+
+    document.addEventListener('click', function(event) {
+        var trigger = event.target.closest('[data-config-action="reset"]');
+        if (!trigger) {
+            return;
+        }
+
+        event.preventDefault();
+        window.resetForm();
+    });
 })();
 </script>

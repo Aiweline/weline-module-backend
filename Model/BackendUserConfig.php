@@ -16,6 +16,9 @@ use Weline\Framework\Database\Schema\Attribute\Col;
 use Weline\Framework\Database\Schema\Attribute\Index;
 use Weline\Framework\Database\Schema\Attribute\Table;
 use Weline\Framework\Manager\ObjectManager;
+use Weline\Framework\Runtime\RuntimeProviderResolution;
+use Weline\Framework\Runtime\RuntimeProviderResolver;
+use Weline\Framework\Session\Auth\Device\AuthenticatedDeviceRegistryInterface;
 #[Table(comment: '后台用户配置表')]
 #[Index(name: 'idx_user_key', columns: ['user_id', 'key'], type: 'UNIQUE', comment: '管理员配置唯一索引')]
 #[Index(name: 'idx_module', columns: ['module'], comment: '模组索引')]
@@ -39,6 +42,113 @@ class BackendUserConfig extends Model
     private array $default_config = [];
     public array $_index_sort_keys = [self::schema_fields_ID, self::schema_fields_user_id, self::schema_fields_key, self::schema_fields_name, self::schema_fields_module];
     public array $_unit_primary_keys = [self::schema_fields_user_id, self::schema_fields_key];
+    public function getCurrentUserId(): int
+    {
+        try {
+            /**@var AuthenticatedSessionInterface $userSession */
+            $userSession = SessionFactory::getInstance()->createBackendSession();
+            $userId = (int)($userSession->getUserId() ?? 0);
+            if ($userId > 0) {
+                return $userId;
+            }
+
+            $loginUser = $userSession->getLoginUser();
+            if (\is_object($loginUser) && \method_exists($loginUser, 'getId')) {
+                $userId = (int)$loginUser->getId();
+                if ($userId > 0) {
+                    return $userId;
+                }
+            }
+
+            // sess_id is a pre-device-registry compatibility lookup. When the
+            // registry is configured, a missing authenticated identity may
+            // mean that this exact device was revoked and must stay anonymous.
+            if (!$this->legacySessionLookupAllowed()) {
+                return 0;
+            }
+
+            $sessionId = \trim((string)$userSession->getId());
+            if ($sessionId === '') {
+                $sessionId = $this->resolveSessionIdFromCookie();
+            }
+            if ($sessionId === '') {
+                return 0;
+            }
+
+            /** @var BackendUser $backendUser */
+            $backendUser = ObjectManager::getInstance(BackendUser::class);
+            $row = $backendUser->clear()
+                ->where(BackendUser::schema_fields_sess_id, $sessionId)
+                ->find()
+                ->fetchArray();
+            return (int)($row[BackendUser::schema_fields_ID] ?? 0);
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
+    private function legacySessionLookupAllowed(): bool
+    {
+        try {
+            $resolution = ObjectManager::getInstance(RuntimeProviderResolver::class)
+                ->resolveDetailed(AuthenticatedDeviceRegistryInterface::class);
+            return $resolution->status === RuntimeProviderResolution::NOT_CONFIGURED;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function resolveSessionIdFromCookie(): string
+    {
+        $cookieHeader = '';
+        if (\class_exists(\Weline\Framework\Env\WelineEnv::class)) {
+            $cookieHeader = (string)(
+                \Weline\Framework\Env\WelineEnv::server('HTTP_COOKIE', '')
+                ?: \Weline\Framework\Env\WelineEnv::get('server.http_cookie', '')
+            );
+        }
+        if ($cookieHeader !== '' && \preg_match('/(?:^|;\s*)WELINE_SESSID=([^;]+)/', $cookieHeader, $matches)) {
+            return \trim((string)\urldecode($matches[1]));
+        }
+
+        return \trim((string)($_COOKIE['WELINE_SESSID'] ?? ''));
+    }
+
+    private function isCommandLineConfigContext(): bool
+    {
+        if (!CLI) {
+            return false;
+        }
+
+        if ($this->resolveSessionIdFromCookie() !== '') {
+            return false;
+        }
+
+        $serverKeys = [
+            'REQUEST_METHOD',
+            'REQUEST_URI',
+            'HTTP_HOST',
+            'SERVER_NAME',
+            'WELINE_AREA',
+            'WELINE_AREA_ROUTE',
+        ];
+
+        foreach ($serverKeys as $key) {
+            $serverValue = (string)($_SERVER[$key] ?? '');
+            if ($serverValue !== '') {
+                return false;
+            }
+
+            if (\class_exists(\Weline\Framework\Env\WelineEnv::class)) {
+                $envValue = (string)\Weline\Framework\Env\WelineEnv::server($key, '');
+                if ($envValue !== '') {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
 /** 返回配置
      * @param string $key
      * @param bool $real
@@ -46,13 +156,12 @@ class BackendUserConfig extends Model
      */
     public function getConfig(string $key, string $module = '', string $name = '', bool $real = false): string
     {
-        if (CLI) {
+        if ($this->isCommandLineConfigContext()) {
             return $this->getDefaultConfig($key);
         }
         if ($real) {
-            /**@var AuthenticatedSessionInterface $userSession */
-            $userSession = SessionFactory::getInstance()->createBackendSession();
-            return $this->clear()->where(self::schema_fields_user_id, $userSession->getUserId())
+            $userId = $this->getCurrentUserId();
+            return $this->clear()->where(self::schema_fields_user_id, $userId)
                 ->where(self::schema_fields_key, $key)
                 ->find()
                 ->fetchArray()['value'] ?? '';
@@ -62,10 +171,9 @@ class BackendUserConfig extends Model
             return $this->config[$self_config_key];
         }
         # 读取用户全部配置
-        /**@var AuthenticatedSessionInterface $userSession */
-        $userSession = SessionFactory::getInstance()->createBackendSession();
+        $userId = $this->getCurrentUserId();
         $this->reset()
-            ->where(self::schema_fields_user_id, $userSession->getUserId())
+            ->where(self::schema_fields_user_id, $userId)
             ->where(self::schema_fields_key, $key);
         if ($module) {
             $this->where(self::schema_fields_module, $module);
@@ -109,7 +217,7 @@ class BackendUserConfig extends Model
     public function setConfig(string $key, string $value, string $module, string $name, $check = true): bool
     {
         $this->config[self::key($key, $module, $name)] = $value;
-        if (CLI) {
+        if ($this->isCommandLineConfigContext()) {
             return $this->setDefaultConfig($key, $value, $module, $name);
         }
         if ($check) {
@@ -123,12 +231,14 @@ class BackendUserConfig extends Model
             }
         }
         # 设置用户配置
-        /**@var AuthenticatedSessionInterface $userSession */
-        $userSession = SessionFactory::getInstance()->createBackendSession();
+        $userId = $this->getCurrentUserId();
+        if ($userId <= 0) {
+            return false;
+        }
         return (bool)$this->clear()
             ->setData(self::schema_fields_key, $key, true)
             ->setData(self::schema_fields_value, $value)
-            ->setData(self::schema_fields_user_id, $userSession->getUserId(), true)
+            ->setData(self::schema_fields_user_id, $userId, true)
             // 仅 user_id + key 是真实唯一键；module/name 只是普通更新字段，不能参与 PG 的 ON CONFLICT
             ->setData(self::schema_fields_module, $module)
             ->setData(self::schema_fields_name, $name)

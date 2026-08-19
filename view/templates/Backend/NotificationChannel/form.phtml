@@ -25,6 +25,13 @@ $currentTopics = [];
 if ($channel) {
     $currentTopics = $channel->getSubscribedTopics();
 }
+$jsonForScriptFlags = JSON_UNESCAPED_UNICODE
+    | JSON_UNESCAPED_SLASHES
+    | JSON_HEX_TAG
+    | JSON_HEX_AMP
+    | JSON_HEX_APOS
+    | JSON_HEX_QUOT
+    | JSON_INVALID_UTF8_SUBSTITUTE;
 ?>
 
 <div class="row">
@@ -52,7 +59,7 @@ if ($channel) {
     <div class="col-xl-8">
         <div class="card">
             <div class="card-body">
-                <form id="channelForm">
+                <w:form id="channelForm">
                     <input type="hidden" name="channel_id" value="<?= $channelData['channel_id'] ?? '' ?>">
 
                     <div class="row">
@@ -60,7 +67,6 @@ if ($channel) {
                             <div class="mb-3">
                                 <label class="form-label"><lang>渠道类型</lang> <span class="text-danger">*</span></label>
                                 <select class="form-select" name="channel_code" id="channelCode" required
-                                        onchange="WelineChannelForm.onChannelCodeChange(this.value)"
                                         <?= $channel ? 'disabled' : '' ?>>
                                     <option value=""><lang>请选择</lang></option>
                                     <?php foreach ($adapter_options as $code => $name): ?>
@@ -169,17 +175,17 @@ if ($channel) {
                     <hr>
 
                     <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-primary" onclick="WelineChannelForm.save()">
+                        <button type="button" class="btn btn-primary" data-channel-form-action="save">
                             <i class="mdi mdi-content-save me-1"></i><lang>保存</lang>
                         </button>
-                        <button type="button" class="btn btn-outline-info" onclick="WelineChannelForm.test()">
+                        <button type="button" class="btn btn-outline-info" data-channel-form-action="test">
                             <i class="mdi mdi-send me-1"></i><lang>测试连接</lang>
                         </button>
                         <a href="<?= $this->getBackendUrl('*/backend/notificationchannel') ?>" class="btn btn-secondary">
                             <lang>取消</lang>
                         </a>
                     </div>
-                </form>
+                </w:form>
             </div>
         </div>
     </div>
@@ -223,11 +229,50 @@ if ($channel) {
 }
 </style>
 
+
+<script>
+(function(g){
+  if(g.__bqAdmin_backend_admin) return;
+  g.__bqAdmin_backend_admin=true;
+  g.bqAdmin=g.bqAdmin||{};
+  g.bqAdmin['backend_admin']=function(url, options){
+    options=options||{};
+    var body=options.body;
+    if(body && typeof FormData!=='undefined' && body instanceof FormData){
+      var p=new URLSearchParams(); body.forEach(function(v,k){ if(!(typeof File!=='undefined'&&v instanceof File)) p.append(k,String(v)); }); body=p.toString();
+    } else if(body && typeof body!=='string'){ try{ body=JSON.stringify(body); }catch(e){ body=''; } }
+    var run=function(api){ return api.resource('backend_admin').adminRequest({url:url, method:options.method||'POST', headers:options.headers||{}, body:body||''}); };
+    var toResp=function(data){
+      var _biz=g.WelineApiBusiness||(g.Weline&&g.Weline.ApiBusiness);
+      if(_biz&&typeof _biz.wrapAdminBridgeResult==='function'){
+        return _biz.wrapAdminBridgeResult(data);
+      }
+      var body=(data&&typeof data==='object'&&!Array.isArray(data))?data:{success:true,data:data};
+      var ok=!(body&&body.success===false);
+      var resp={ok:ok,status:ok?200:400,json:function(){return Promise.resolve(body);},text:function(){return Promise.resolve(typeof body==='string'?body:JSON.stringify(body==null?{}:body));}};
+      Object.keys(body).forEach(function(k){ if(k==='ok'||k==='json'||k==='text'||k==='status') return; resp[k]=body[k]; });
+      return resp;
+    };
+    var p=(g.Weline&&g.Weline.load)?g.Weline.load('api').then(run):Promise.resolve(run(g.Weline.Api));
+    return p.then(toResp);
+  };
+})(window);
+</script>
 <script>
 (function() {
     'use strict';
 
-    var configFieldsData = <?= json_encode($config_fields, JSON_UNESCAPED_UNICODE) ?>;
+    var configFieldsData = <?= json_encode($config_fields, $jsonForScriptFlags) ?>;
+
+    function escapeHtml(value) {
+        var div = document.createElement('div');
+        div.textContent = value == null ? '' : String(value);
+        return div.innerHTML;
+    }
+
+    function escapeAttr(value) {
+        return escapeHtml(value).replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
 
     var WelineChannelForm = {
         onChannelCodeChange: function(code) {
@@ -246,10 +291,10 @@ if ($channel) {
                 var requiredMark = field.required ? '<span class="text-danger">*</span>' : '';
 
                 html += '<div class="mb-3">';
-                html += '<label class="form-label">' + field.label + ' ' + requiredMark + '</label>';
+                html += '<label class="form-label">' + escapeHtml(field.label || '') + ' ' + requiredMark + '</label>';
                 html += '<input type="' + inputType + '" class="form-control" ';
-                html += 'name="channel_config[' + field.name + ']" ';
-                html += 'placeholder="' + (field.placeholder || '') + '" ' + required + '>';
+                html += 'name="channel_config[' + escapeAttr(field.name || '') + ']" ';
+                html += 'placeholder="' + escapeAttr(field.placeholder || '') + '" ' + required + '>';
                 html += '</div>';
             });
 
@@ -262,7 +307,7 @@ if ($channel) {
 
             var url = '<?= $this->getBackendUrl('*/backend/notificationchannel/save') ?>';
             var opts = { method: 'POST', body: new URLSearchParams(formData) };
-            window.Weline.Api.request(url, opts)
+            bqAdmin['backend_admin'](url, opts)
             .then(function(res) {
                 var data = (res && res.data) !== undefined ? res.data : res;
                 if (data.success) {
@@ -288,7 +333,7 @@ if ($channel) {
 
             var url = '<?= $this->getBackendUrl('*/backend/notificationchannel/test') ?>';
             var opts = { method: 'POST', body: new URLSearchParams(formData) };
-            window.Weline.Api.request(url, opts)
+            bqAdmin['backend_admin'](url, opts)
             .then(function(res) {
                 var data = (res && res.data) !== undefined ? res.data : res;
                 if (data.success) {
@@ -305,5 +350,29 @@ if ($channel) {
     };
 
     window.WelineChannelForm = WelineChannelForm;
+
+    var channelCode = document.getElementById('channelCode');
+    if (channelCode) {
+        channelCode.addEventListener('change', function(event) {
+            WelineChannelForm.onChannelCodeChange(event.target.value);
+        });
+    }
+
+    document.addEventListener('click', function(event) {
+        var trigger = event.target.closest('[data-channel-form-action]');
+        if (!trigger) {
+            return;
+        }
+
+        event.preventDefault();
+        if (trigger.getAttribute('data-channel-form-action') === 'save') {
+            WelineChannelForm.save();
+            return;
+        }
+
+        if (trigger.getAttribute('data-channel-form-action') === 'test') {
+            WelineChannelForm.test();
+        }
+    });
 })();
 </script>

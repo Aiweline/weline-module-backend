@@ -11,7 +11,10 @@ declare(strict_types=1);
 
 namespace Weline\Backend\Service;
 
-use Weline\Acl\Model\Acl;
+use Weline\Acl\Api\Authorization\AccessMode;
+use Weline\Acl\Api\Resource\MenuRegistryInterface;
+use Weline\Acl\Service\Resource\SourceIdRenameMap;
+use Weline\Acl\Service\Resource\SourceIdRenameMigrator;
 use Weline\Backend\Config\MenuXmlReader;
 use Weline\Backend\Model\Menu;
 use Weline\Framework\App\Env;
@@ -42,15 +45,15 @@ class MenuCollector
         'Weline_Backend::system_service' => 'Weline_Backend::system_service_group',
     ];
 
-    private Acl $acl;
+    private MenuRegistryInterface $menuRegistry;
     private MenuXmlReader $menuReader;
 
     public function __construct(
-        Acl           $acl,
+        MenuRegistryInterface $menuRegistry,
         MenuXmlReader $menuReader
     )
     {
-        $this->acl = $acl;
+        $this->menuRegistry = $menuRegistry;
         $this->menuReader = $menuReader;
     }
 
@@ -116,6 +119,12 @@ class MenuCollector
         if (empty($modulesFilter) && empty($file_menus)) {
             return [$modules_xml_menus, [], $modules_info, count($file_menus), []];
         }
+
+        // Role grants must be rewritten before the menu diff can remove retired
+        // source ids. `menu:collect` does not run the route-collection observers,
+        // so doing this only in the ACL route catalog loses existing role grants.
+        ObjectManager::getInstance(SourceIdRenameMigrator::class)
+            ->migrate(SourceIdRenameMap::ROLE_ACCESS);
 
         // 流式遍历 DB，不构建完整 db_menus，直接产出 diff 与 seen_db_sources，避免大表内存溢出
         [$diff, $seen_db_sources] = $this->streamDbAndComputeDiff($file_menus, $file_sources, $modulesFilter, $disabledModules);
@@ -190,7 +199,7 @@ class MenuCollector
                 $menu['module'] = $module;
                 $menu['parent_source'] = $this->normalizeParentSource((string)($menu['parent'] ?? ''));
                 $menu['route'] = trim($menu['action'] ?? '', '/');
-                $menu['access_mode'] = Acl::normalizeAccessMode(
+                $menu['access_mode'] = $this->normalizeAccessMode(
                     (string)($menu['access_mode'] ?? $menu['accessMode'] ?? ''),
                     'GET'
                 );
@@ -199,6 +208,7 @@ class MenuCollector
                 unset($menu['parent'], $menu['action']);
 
                 $menu = $this->replaceModuleAction($menu, $modules_info);
+                $menu['route'] = strtolower(trim((string)($menu['route'] ?? ''), '/'));
                 $menu['is_enable'] = in_array($module, $disabledModules, true) ? 0 : 1;
 
                 $source = $menu['source'] ?? '';
@@ -235,30 +245,21 @@ class MenuCollector
         array $modulesFilter,
         array $disabledModules
     ): array {
-        $field = Acl::schema_fields_ACL_ORIGIN;
-        $this->acl->reset();
-        $this->acl->where(Acl::schema_fields_TYPE, Acl::type_MENUS)
-            ->where($field, Acl::acl_origin_user, '!=');
-
-        if (!empty($modulesFilter)) {
-            $this->acl->where(Acl::schema_fields_MODULE, $modulesFilter, 'in');
-        }
-
-        $dbMenus = $this->acl->select()->fetchArray();
+        $dbMenus = $this->menuRegistry->listManagedMenus($modulesFilter);
 
         $seen_db_sources = [];
         $to_update = [];
         $removed = []; // [source_id => module]，用于后续展开子节点并区分 to_delete / to_disable
 
         foreach ($dbMenus as $row) {
-            $sourceId = (string)($row[Acl::schema_fields_SOURCE_ID] ?? '');
+            $sourceId = (string)($row['source_id'] ?? '');
             if ($sourceId === '') {
                 continue;
             }
             $seen_db_sources[$sourceId] = true;
 
             if (!isset($file_menus[$sourceId])) {
-                $removed[$sourceId] = (string)($row[Acl::schema_fields_MODULE] ?? '');
+                $removed[$sourceId] = (string)($row['module'] ?? '');
                 continue;
             }
 
@@ -327,16 +328,16 @@ class MenuCollector
     private function menuDataChanged(array $file, array $db): bool
     {
         $fields = [
-            'source_name' => Acl::schema_fields_SOURCE_NAME,
-            'route' => Acl::schema_fields_ROUTE,
-            'icon' => Acl::schema_fields_ICON,
-            'order' => Acl::schema_fields_ORDER,
-            'parent_source' => Acl::schema_fields_PARENT_SOURCE,
-            'is_enable' => Acl::schema_fields_IS_ENABLE,
-            'module' => Acl::schema_fields_MODULE,
-            'access_mode' => Acl::schema_fields_ACCESS_MODE,
-            'scope_group' => Acl::schema_fields_SCOPE_GROUP,
-            'api_exposable' => Acl::schema_fields_API_EXPOSABLE,
+            'source_name' => 'source_name',
+            'route' => 'route',
+            'icon' => 'icon',
+            'order' => 'order',
+            'parent_source' => 'parent_source',
+            'is_enable' => 'is_enable',
+            'module' => 'module',
+            'access_mode' => 'access_mode',
+            'scope_group' => 'scope_group',
+            'api_exposable' => 'api_exposable',
         ];
         
         foreach ($fields as $fileKey => $dbKey) {
@@ -361,18 +362,12 @@ class MenuCollector
 
         // 删除：从 ACL 表删除
         if (!empty($to_delete)) {
-            $this->acl->reset()
-                ->where(Acl::schema_fields_SOURCE_ID, $to_delete, 'in')
-                ->delete()
-                ->fetch();
+            $this->menuRegistry->deleteManagedMenus($to_delete);
         }
 
         // 软禁用：更新 is_enable = 0
         if (!empty($to_disable)) {
-            $this->acl->reset()
-                ->where(Acl::schema_fields_SOURCE_ID, $to_disable, 'in')
-                ->update([Acl::schema_fields_IS_ENABLE => 0])
-                ->fetch();
+            $this->menuRegistry->disableManagedMenus($to_disable);
         }
 
         // 更新
@@ -396,27 +391,7 @@ class MenuCollector
      */
     private function applyAclUpdate(string $source, array $file_data): void
     {
-        $row = [
-            Acl::schema_fields_SOURCE_NAME => $file_data['title'] ?? $file_data['name'] ?? $source,
-            Acl::schema_fields_ROUTE => $file_data['route'] ?? '',
-            Acl::schema_fields_ICON => $file_data['icon'] ?? '',
-            Acl::schema_fields_ORDER => (int)($file_data['order'] ?? 0),
-            Acl::schema_fields_PARENT_SOURCE => $file_data['parent_source'] ?? '',
-            Acl::schema_fields_MODULE => $file_data['module'] ?? '',
-            Acl::schema_fields_IS_ENABLE => (int)($file_data['is_enable'] ?? 1),
-            Acl::schema_fields_IS_BACKEND => (int)($file_data['is_backend'] ?? 1),
-            Acl::schema_fields_TYPE => Acl::type_MENUS,
-            Acl::schema_fields_ACL_ORIGIN => Acl::acl_origin_menu_xml,
-            Acl::schema_fields_ACCESS_MODE => $file_data['access_mode'] ?? Acl::ACCESS_MODE_READ,
-            Acl::schema_fields_SCOPE_GROUP => $file_data['scope_group'] ?? '',
-            Acl::schema_fields_API_EXPOSABLE => (int)($file_data['api_exposable'] ?? 0),
-            Acl::schema_fields_DOCUMENT => ($file_data['is_system'] ?? 0) ? __('系统菜单') : __('用户菜单'),
-        ];
-
-        $this->acl->reset()
-            ->where(Acl::schema_fields_SOURCE_ID, $source)
-            ->update($row)
-            ->fetch();
+        $this->menuRegistry->upsertManagedMenu($source, $file_data);
     }
 
     /**
@@ -424,29 +399,7 @@ class MenuCollector
      */
     private function applyAclInsert(string $source, array $file_data): void
     {
-        $row = [
-            Acl::schema_fields_SOURCE_ID => $source,
-            Acl::schema_fields_SOURCE_NAME => $file_data['title'] ?? $file_data['name'] ?? $source,
-            Acl::schema_fields_ROUTE => $file_data['route'] ?? '',
-            Acl::schema_fields_ROUTER => '',
-            Acl::schema_fields_ICON => $file_data['icon'] ?? '',
-            Acl::schema_fields_ORDER => (int)($file_data['order'] ?? 0),
-            Acl::schema_fields_PARENT_SOURCE => $file_data['parent_source'] ?? '',
-            Acl::schema_fields_MODULE => $file_data['module'] ?? '',
-            Acl::schema_fields_CLASS => '',
-            Acl::schema_fields_METHOD => 'GET',
-            Acl::schema_fields_REWRITE => '',
-            Acl::schema_fields_TYPE => Acl::type_MENUS,
-            Acl::schema_fields_ACL_ORIGIN => Acl::acl_origin_menu_xml,
-            Acl::schema_fields_ACCESS_MODE => $file_data['access_mode'] ?? Acl::ACCESS_MODE_READ,
-            Acl::schema_fields_SCOPE_GROUP => $file_data['scope_group'] ?? '',
-            Acl::schema_fields_API_EXPOSABLE => (int)($file_data['api_exposable'] ?? 0),
-            Acl::schema_fields_DOCUMENT => ($file_data['is_system'] ?? 0) ? __('系统菜单') : __('用户菜单'),
-            Acl::schema_fields_IS_ENABLE => (int)($file_data['is_enable'] ?? 1),
-            Acl::schema_fields_IS_BACKEND => (int)($file_data['is_backend'] ?? 1),
-        ];
-
-        $this->acl->reset()->setData($row)->save(true, Acl::schema_fields_SOURCE_ID);
+        $this->menuRegistry->upsertManagedMenu($source, $file_data);
     }
 
     /**
@@ -605,21 +558,22 @@ class MenuCollector
         }
         $visited[$parentSource] = true;
 
-        $field = Acl::schema_fields_ACL_ORIGIN;
-        $this->acl->reset();
-        $childrenRows = $this->acl->where(Acl::schema_fields_PARENT_SOURCE, $parentSource)
-            ->where(Acl::schema_fields_TYPE, Acl::type_MENUS)
-            ->where($field, Acl::acl_origin_user, '!=')
-            ->select()
-            ->fetchArray();
-
-        foreach ($childrenRows as $child) {
-            $s = $child[Acl::schema_fields_SOURCE_ID] ?? '';
+        foreach ($this->menuRegistry->getManagedChildSources($parentSource) as $s) {
             if ($s !== '' && !in_array($s, $sources, true)) {
                 $sources[] = $s;
                 $this->collectChildAclSources($s, $sources, $visited);
             }
         }
+    }
+
+    private function normalizeAccessMode(?string $accessMode, ?string $httpMethod): string
+    {
+        $accessMode = strtolower(trim((string)$accessMode));
+        if ($accessMode === AccessMode::READ || $accessMode === AccessMode::EDIT) {
+            return $accessMode;
+        }
+        $method = strtoupper(trim((string)$httpMethod));
+        return ($method === 'GET' || $method === 'HEAD') ? AccessMode::READ : AccessMode::EDIT;
     }
 
     /**

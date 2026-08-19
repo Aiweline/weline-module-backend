@@ -11,7 +11,8 @@ declare(strict_types=1);
 
 namespace Weline\Backend\Model;
 
-use Weline\Acl\Model\Role;
+use Weline\Acl\Api\Role\RoleCatalogInterface;
+use Weline\Acl\Api\Role\RoleRecord;
 use Weline\Backend\Model\Backend\Acl\UserRole;
 use Weline\Framework\Database\Model;
 use Weline\Framework\Database\Schema\Attribute\Col;
@@ -53,9 +54,12 @@ class BackendUser extends Model implements AuthenticableInterface
     public const schema_fields_is_enabled = 'is_enabled';
     #[Col('int', 1, default: 0, comment: '是否沙盒账户')]
     public const schema_fields_is_sandbox = 'is_sandbox';
+    /** 0=仅默认站/平台后台；N=仅该站后端可登录（user_id=1 超管可跨站登录） */
+    #[Col('int', 0, default: 0, comment: '所属网站ID')]
+    public const schema_fields_website_id = 'website_id';
 
     public array $_unit_primary_keys = [self::schema_fields_ID];
-    public array $_index_sort_keys = ['user_id', 'email', 'username'];
+    public array $_index_sort_keys = ['user_id', 'email', 'username', 'website_id'];
 
     private bool $_is_new_user = false;
     /** 请求级 ACL 上下文缓存（user_id ⇒ context）；WLS 下由 StateManager 重置 */
@@ -179,6 +183,16 @@ class BackendUser extends Model implements AuthenticableInterface
         return (bool)$this->getData(self::schema_fields_is_sandbox);
     }
 
+    public function getWebsiteId(): int
+    {
+        return (int)$this->getData(self::schema_fields_website_id);
+    }
+
+    public function setWebsiteId(int $websiteId): static
+    {
+        return $this->setData(self::schema_fields_website_id, max(0, $websiteId));
+    }
+
     public function setSandboxAccount(bool $flag): static
     {
         return $this->setData(self::schema_fields_is_sandbox, $flag ? 1 : 0);
@@ -191,16 +205,21 @@ class BackendUser extends Model implements AuthenticableInterface
         }
         /**@var \Weline\Backend\Model\Backend\Acl\UserRole $userRole */
         $userRole = ObjectManager::getInstance(UserRole::class);
-        try {
-            $userRole->clear()->joinModel(Role::class, 'r', 'main_table.role_id=r.role_id')
-                ->where('main_table.' . self::schema_fields_ID, $this->getId())
-                ->find()->fetch();
-        } catch (\Throwable $e) {
-            throw $e;
-        }
+        $userRole->clear()
+            ->where(UserRole::schema_fields_USER_ID, $this->getId())
+            ->find()->fetch();
         // user_id=1 视为超管：若关联表无记录则虚拟为 role_id=1，保证菜单与权限逻辑一致
         if ((int) $this->getId() === 1 && !$userRole->getRoleId()) {
             $userRole->setUserId((int) $this->getId())->setRoleId(1);
+        }
+        $roleId = (int)($userRole->getRoleId() ?: 0);
+        if ($roleId > 0) {
+            $role = $this->roleCatalog()->find($roleId);
+            if ($role === null) {
+                $userRole->setRoleId(0);
+            } else {
+                $this->setData('role', $role);
+            }
         }
         $this->setData('user_role', $userRole);
         return $userRole;
@@ -280,16 +299,23 @@ class BackendUser extends Model implements AuthenticableInterface
         self::$aclContextCache = [];
     }
 
-    public function getRoleModel(): Role
+    public function getRoleModel(): RoleRecord
     {
         if ($role = $this->getData('role')) {
             return $role;
         }
-        /**@var Role $role */
-        $role = clone ObjectManager::getInstance(Role::class);
-        $role = $role->load($this->getRole()->getRoleId() ?: 0);
-        if ($role->getId()) $this->setData('role', $role);
-        return $role;
+        $roleId = (int)($this->getRole()->getRoleId() ?: 0);
+        $role = $roleId > 0 ? $this->roleCatalog()->find($roleId) : null;
+        if ($role !== null) {
+            $this->setData('role', $role);
+            return $role;
+        }
+        return new RoleRecord(0, '', '');
+    }
+
+    private function roleCatalog(): RoleCatalogInterface
+    {
+        return ObjectManager::getInstance(RoleCatalogInterface::class);
     }
 
     public function assignRole(int $role_id)
@@ -372,4 +398,3 @@ class BackendUser extends Model implements AuthenticableInterface
         return self::class;
     }
 }
-
